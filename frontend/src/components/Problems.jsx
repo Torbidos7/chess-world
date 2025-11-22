@@ -16,10 +16,12 @@ const Problems = () => {
         loading,
         error,
         solutionIndex,
+        source,
+        setSource,
         fetchDailyPuzzle,
         fetchRandomPuzzle,
         validateMove,
-        resetPuzzle
+        resetPuzzle,
     } = usePuzzle();
 
     // Load initial puzzle
@@ -221,18 +223,12 @@ const Problems = () => {
             </div>
 
             {/* Puzzle Info */}
-            <div className="w-full max-w-[75vh] bg-gray-800 rounded-xl p-5 shadow-xl border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold flex items-center gap-2 text-chess-accent">
-                        <Trophy className="text-yellow-400" size={22} /> Daily Puzzle
+            <div className="bg-gray-900 rounded-xl p-6 shadow-2xl border border-gray-700">
+                <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold flex items-center gap-2">
+                        <Zap size={24} className="text-yellow-500" />
+                        Chess Puzzles
                     </h2>
-                    <button
-                        onClick={handleNewPuzzle}
-                        disabled={loading}
-                        className="px-5 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 rounded-lg font-bold text-gray-200 transition-colors flex items-center gap-2"
-                    >
-                        <RefreshCw size={18} /> New Puzzle
-                    </button>
                 </div>
 
                 {error && (

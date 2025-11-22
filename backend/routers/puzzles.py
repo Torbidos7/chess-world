@@ -1,12 +1,14 @@
+```python
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 import requests
 import chess
 import chess.pgn
-import chess.pgn
 from io import StringIO
 import os
+import random
+from ..services.puzzle_db import puzzle_db
 
 router = APIRouter(prefix="/api/puzzles", tags=["puzzles"])
 
@@ -114,6 +116,10 @@ async def validate_move(request: ValidateMoveRequest):
         "next_index": request.solution_index + 1
     }
 
+# Track recently shown puzzles to avoid repetition
+recent_puzzles = []
+MAX_RECENT = 20
+
 @router.get("/random")
 async def get_random_puzzle(
     rating_min: Optional[int] = None,
@@ -125,18 +131,29 @@ async def get_random_puzzle(
     
     Since Lichess doesn't have a free random endpoint, we cycle through a list of known puzzle IDs
     """
-    import random
-    
-    # Curated list of puzzle IDs for variety
-    PUZZLE_IDS = [
-        "tDqkO",  # Today's daily (changes daily)
-        "03WZC", "08gBV", "0D5LG", "0Fpy6", "0IWxg",
-        "1dzWZ", "2jqZ7", "3eQKK", "4mxHj", "5dG8U"
-    ]
+    global recent_puzzles
     
     try:
+        # Curated list of puzzle IDs for variety
+        PUZZLE_IDS = [
+            "tDqkO",  # Today's daily (changes daily)
+            "03WZC", "08gBV", "0D5LG", "0Fpy6", "0IWxg",
+            "1dzWZ", "2jqZ7", "3eQKK", "4mxHj", "5dG8U",
+            "6H2wY", "7nLkP", "8QxRm", "9TvBn", "0AcDe"
+        ]
+        
+        # Filter out recently shown puzzles
+        available = [pid for pid in PUZZLE_IDS if pid not in recent_puzzles]
+        if not available:
+            # Reset if all have been shown
+            recent_puzzles = []
+            available = PUZZLE_IDS
+        
         # Pick a random puzzle ID
-        puzzle_id = random.choice(PUZZLE_IDS)
+        puzzle_id = random.choice(available)
+        recent_puzzles.append(puzzle_id)
+        if len(recent_puzzles) > MAX_RECENT:
+            recent_puzzles.pop(0)
         
         # Try to fetch the specific puzzle
         response = requests.get(
@@ -196,6 +213,37 @@ async def get_random_puzzle(
         
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=503, detail=f"Lichess API unavailable: {str(e)}")
+
+@router.get("/local")
+async def get_local_puzzle(
+    rating_min: Optional[int] = None,
+    rating_max: Optional[int] = None
+):
+    """
+    Get a random puzzle from local database
+    """
+    try:
+        puzzle_data = puzzle_db.get_random_puzzle(rating_min, rating_max)
+        
+        if not puzzle_data:
+            raise HTTPException(status_code=404, detail="No puzzles found in local database")
+        
+        puzzle = Puzzle(
+            id=puzzle_data['id'],
+            fen=puzzle_data['fen'],
+            rating=puzzle_data['rating'],
+            themes=puzzle_data['themes'],
+            solution=puzzle_data['solution'],
+            initial_move=puzzle_data['initial_move']
+        )
+        
+        return PuzzleResponse(
+            puzzle=puzzle,
+            message=f"Local puzzle fetched (Rating: {puzzle.rating})"
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading local puzzle: {str(e)}")
 
 def uci_to_san(fen: str, uci_move: str) -> str:
     """

@@ -8,6 +8,7 @@ export const usePuzzle = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [solutionIndex, setSolutionIndex] = useState(0);
+    const [source, setSource] = useState('api'); // 'api' or 'local'
 
     const fetchDailyPuzzle = useCallback(async () => {
         setLoading(true);
@@ -28,29 +29,21 @@ export const usePuzzle = () => {
         }
     }, []);
 
-    const fetchRandomPuzzle = useCallback(async (ratingMin, ratingMax, theme) => {
+    const fetchRandomPuzzle = useCallback(async () => {
         setLoading(true);
         setError(null);
-
         try {
-            const params = {};
-            if (ratingMin) params.rating_min = ratingMin;
-            if (ratingMax) params.rating_max = ratingMax;
-            if (theme) params.theme = theme;
-
-            const response = await axios.get(`${API_URL}/api/puzzles/random`, { params });
+            const endpointPath = source === 'local' ? '/api/puzzles/local' : '/api/puzzles/random';
+            const response = await axios.get(`${API_URL}${endpointPath}`);
             setPuzzle(response.data.puzzle);
             setSolutionIndex(0);
-            return response.data.puzzle;
         } catch (err) {
-            const errorMsg = err.response?.data?.detail || 'Failed to fetch random puzzle';
-            setError(errorMsg);
-            console.error('Puzzle error:', err);
-            return null;
+            console.error('Failed to fetch puzzle:', err);
+            setError(err.message || 'Failed to load puzzle');
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [source]);
 
     const validateMove = useCallback((moveUci) => {
         if (!puzzle) return false;
@@ -74,9 +67,11 @@ export const usePuzzle = () => {
         loading,
         error,
         solutionIndex,
+        source,
+        setSource,
         fetchDailyPuzzle,
         fetchRandomPuzzle,
         validateMove,
-        resetPuzzle
+        resetPuzzle,
     };
 };
