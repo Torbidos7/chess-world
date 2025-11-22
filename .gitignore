@@ -17,3 +17,7 @@ frontend/dist/
 # IDE
 .vscode/
 .idea/
+
+#docs
+
+docs/puzzles/*
