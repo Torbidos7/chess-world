@@ -19,5 +19,5 @@ frontend/dist/
 .idea/
 
 #docs
-
+examples/
 docs/puzzles/
