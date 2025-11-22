@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-chess
+stockfish
+sqlalchemy
+pydantic
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+websockets
+requests
