@@ -54,21 +54,23 @@ const Training = () => {
     }
 
     function onDrop(sourceSquare, targetSquare) {
-        let move = null;
-        safeGameMutate((game) => {
-            try {
-                move = game.move({
-                    from: sourceSquare,
-                    to: targetSquare,
-                    promotion: 'q',
-                });
-            } catch (error) {
-                console.error('Invalid move:', error);
-                return game; // Return unchanged game
+        try {
+            const gameCopy = new Chess(game.fen());
+            const move = gameCopy.move({
+                from: sourceSquare,
+                to: targetSquare,
+                promotion: 'q',
+            });
+
+            if (move) {
+                setGame(gameCopy);
+                return true;
             }
-            return game;
-        });
-        return move !== null;
+        } catch (error) {
+            console.error('Invalid move:', error);
+            return false;
+        }
+        return false;
     }
 
     const handlePgnUpload = async (e) => {

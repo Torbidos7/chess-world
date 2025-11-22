@@ -59,7 +59,7 @@ const Problems = () => {
         }
     }, [puzzle]);
 
-    async function onDrop(sourceSquare, targetSquare) {
+    function onDrop(sourceSquare, targetSquare) {
         if (status !== 'playing' || !puzzle) return false;
 
         const move = {
@@ -80,7 +80,7 @@ const Problems = () => {
         const uciMove = sourceSquare + targetSquare + (move.promotion && (gameCopy.get(targetSquare)?.type === 'p' && (targetSquare[1] === '8' || targetSquare[1] === '1')) ? 'q' : '');
 
         // Validate against solution
-        const isCorrect = await validateMove(uciMove);
+        const isCorrect = validateMove(uciMove);
 
         if (isCorrect) {
             setGame(gameCopy);
@@ -100,10 +100,14 @@ const Problems = () => {
                     const responseProm = responseMove.length > 4 ? responseMove.substring(4, 5) : undefined;
 
                     try {
-                        gameCopy.move({ from: responseFrom, to: responseTo, promotion: responseProm });
-                        setGame(new Chess(gameCopy.fen()));
+                        setGame(current => {
+                            const g = new Chess(current.fen());
+                            g.move({ from: responseFrom, to: responseTo, promotion: responseProm });
+                            return g;
+                        });
 
                         // Check again if this was the last move
+                        // We need to check against solution length - 2 because we just played one more move
                         if (solutionIndex + 2 >= puzzle.solution.length) {
                             setStatus('solved');
                         }

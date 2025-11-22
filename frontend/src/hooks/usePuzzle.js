@@ -52,7 +52,7 @@ export const usePuzzle = () => {
         }
     }, []);
 
-    const validateMove = useCallback(async (moveUci) => {
+    const validateMove = useCallback((moveUci) => {
         if (!puzzle) return false;
 
         const expectedMove = puzzle.solution[solutionIndex];
