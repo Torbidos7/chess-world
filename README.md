@@ -4,7 +4,7 @@
 - **Legal Move Highlighting**: Drag a piece to see all possible legal moves, helping you learn piece movement and avoid blunders.
 - **Evaluation Bar**: Visual feedback on who is winning (Positive for White, Negative for Black).
 
-![Training Mode](training_fixed.png)
+![Training Mode](docs/screenshots/training.png)
 A modern, full-featured chess application built with React, Python (FastAPI), and AI integration.
 
 ![Home Page](docs/screenshots/home.png)
@@ -29,7 +29,7 @@ A modern, full-featured chess application built with React, Python (FastAPI), an
 
 [Detailed Feature Explanation](features_explained.md) | [Future Suggestions](suggestions.md)
 
-![Profile Mode](profile_fixed.png)
+![Profile Mode](docs/screenshots/profile.png)
 
 ---
 
