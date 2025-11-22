@@ -144,7 +144,7 @@ const Problems = () => {
     return (
         <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 gap-6">
             <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-[75vh] aspect-square shadow-2xl rounded-lg overflow-hidden border-4 border-gray-700 relative">
+                <div className="w-full max-w-[75vh] aspect-square shadow-2xl rounded-lg border-4 border-gray-700 relative">
                     <Chessboard
                         key={boardKey}
                         id="ProblemBoard"
@@ -223,8 +223,8 @@ const Problems = () => {
                             <div className="text-xs text-gray-400 mb-1 uppercase tracking-wider font-bold">Difficulty</div>
                             <div className="flex items-center gap-2">
                                 <Zap size={20} className={`${puzzle.rating > 2000 ? 'text-red-400' :
-                                        puzzle.rating > 1500 ? 'text-yellow-400' :
-                                            'text-green-400'
+                                    puzzle.rating > 1500 ? 'text-yellow-400' :
+                                        'text-green-400'
                                     }`} />
                                 <div className="text-2xl font-bold text-white">
                                     {puzzle.rating}

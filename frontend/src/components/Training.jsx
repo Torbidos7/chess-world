@@ -111,7 +111,7 @@ const Training = () => {
         <div className="flex flex-col items-center w-full max-w-6xl mx-auto p-4 gap-6">
             {/* Board Section */}
             <div className="w-full flex flex-col items-center">
-                <div className="w-full max-w-[75vh] aspect-square shadow-2xl rounded-lg overflow-hidden border-4 border-gray-700">
+                <div className="w-full max-w-[75vh] aspect-square shadow-2xl rounded-lg border-4 border-gray-700">
                     <Chessboard
                         key={boardKey}
                         id="TrainingBoard"
@@ -288,8 +288,8 @@ const Training = () => {
                                 key={g.index}
                                 onClick={() => loadGame(g.index)}
                                 className={`p-3 rounded-lg text-left text-sm transition-colors ${currentGame?.game_index === g.index
-                                        ? 'bg-chess-accent text-white'
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                    ? 'bg-chess-accent text-white'
+                                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                                     }`}
                             >
                                 <div className="font-medium">{g.white} vs {g.black}</div>

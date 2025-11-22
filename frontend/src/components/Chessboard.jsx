@@ -9,7 +9,9 @@ const ChessboardComponent = () => {
     const [optionSquares, setOptionSquares] = useState({});
 
     function onDrop(sourceSquare, targetSquare) {
+        console.log('onDrop:', sourceSquare, targetSquare);
         const moveSuccessful = makeMove(sourceSquare, targetSquare);
+        console.log('moveSuccessful:', moveSuccessful);
         if (moveSuccessful) {
             setOptionSquares({});
             setMoveFrom(null);
@@ -24,11 +26,12 @@ const ChessboardComponent = () => {
                 {isConnected ? <Wifi size={20} /> : <WifiOff size={20} />}
             </div>
 
-            <div className="w-full max-w-[70vh] aspect-square shadow-2xl rounded-lg overflow-hidden border-4 border-gray-700">
+            <div className="w-full max-w-[70vh] aspect-square shadow-2xl rounded-lg border-4 border-gray-700">
                 <Chessboard
                     id="PlayBoard"
                     position={game.fen()}
                     onPieceDrop={onDrop}
+                    arePiecesDraggable={true}
                     customDarkSquareStyle={{ backgroundColor: '#769656' }}
                     customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
                     animationDuration={200}
