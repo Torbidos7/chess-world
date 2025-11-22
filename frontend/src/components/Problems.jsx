@@ -62,64 +62,72 @@ const Problems = () => {
     function onDrop(sourceSquare, targetSquare) {
         if (status !== 'playing' || !puzzle) return false;
 
-        const move = {
-            from: sourceSquare,
-            to: targetSquare,
-            promotion: 'q',
-        };
-
-        let gameCopy = new Chess(game.fen());
         try {
-            const result = gameCopy.move(move);
-            if (!result) return false;
-        } catch (e) {
-            return false;
-        }
+            console.log('Puzzle Move:', sourceSquare, '->', targetSquare);
+            const gameCopy = new Chess(game.fen());
 
-        // Convert to UCI for validation
-        const uciMove = sourceSquare + targetSquare + (move.promotion && (gameCopy.get(targetSquare)?.type === 'p' && (targetSquare[1] === '8' || targetSquare[1] === '1')) ? 'q' : '');
+            // Check for promotion
+            const piece = gameCopy.get(sourceSquare);
+            const isPromotion = piece?.type === 'p' && (
+                (piece.color === 'w' && targetSquare[1] === '8') ||
+                (piece.color === 'b' && targetSquare[1] === '1')
+            );
 
-        // Validate against solution
-        const isCorrect = validateMove(uciMove);
+            const move = gameCopy.move({
+                from: sourceSquare,
+                to: targetSquare,
+                promotion: isPromotion ? 'q' : undefined,
+            });
 
-        if (isCorrect) {
-            setGame(gameCopy);
+            if (!move) return false;
 
-            // Check if puzzle is complete
-            if (solutionIndex >= puzzle.solution.length - 1) {
-                setStatus('solved');
-                return true;
-            }
+            // Convert to UCI for validation
+            const uciMove = sourceSquare + targetSquare + (move.promotion ? move.promotion : '');
 
-            // Play opponent's response (next move in solution)
-            setTimeout(() => {
-                const responseMove = puzzle.solution[solutionIndex + 1];
-                if (responseMove) {
-                    const responseFrom = responseMove.substring(0, 2);
-                    const responseTo = responseMove.substring(2, 4);
-                    const responseProm = responseMove.length > 4 ? responseMove.substring(4, 5) : undefined;
+            // Validate against solution
+            const isCorrect = validateMove(uciMove);
 
-                    try {
-                        setGame(current => {
-                            const g = new Chess(current.fen());
-                            g.move({ from: responseFrom, to: responseTo, promotion: responseProm });
-                            return g;
-                        });
+            if (isCorrect) {
+                setGame(gameCopy);
 
-                        // Check again if this was the last move
-                        // We need to check against solution length - 2 because we just played one more move
-                        if (solutionIndex + 2 >= puzzle.solution.length) {
-                            setStatus('solved');
-                        }
-                    } catch (e) {
-                        console.error("Error playing response:", e);
-                    }
+                // Check if puzzle is complete
+                if (solutionIndex >= puzzle.solution.length - 1) {
+                    setStatus('solved');
+                    return true;
                 }
-            }, 500);
 
-            return true;
-        } else {
-            setStatus('failed');
+                // Play opponent's response (next move in solution)
+                setTimeout(() => {
+                    const responseMove = puzzle.solution[solutionIndex + 1];
+                    if (responseMove) {
+                        const responseFrom = responseMove.substring(0, 2);
+                        const responseTo = responseMove.substring(2, 4);
+                        const responseProm = responseMove.length > 4 ? responseMove.substring(4, 5) : undefined;
+
+                        try {
+                            setGame(current => {
+                                const g = new Chess(current.fen());
+                                g.move({ from: responseFrom, to: responseTo, promotion: responseProm });
+                                return g;
+                            });
+
+                            // Check again if this was the last move
+                            // We need to check against solution length - 2 because we just played one more move
+                            if (solutionIndex + 2 >= puzzle.solution.length) {
+                                setStatus('solved');
+                            }
+                        } catch (e) {
+                            console.error("Error playing response:", e);
+                        }
+                    }
+                }, 500);
+
+                return true;
+            } else {
+                setStatus('failed');
+                return false;
+            }
+        } catch (e) {
             return false;
         }
     }
@@ -154,6 +162,7 @@ const Problems = () => {
                         id="ProblemBoard"
                         position={game.fen()}
                         onPieceDrop={onDrop}
+                        boardOrientation={game.turn() === 'w' ? 'white' : 'black'}
                         customDarkSquareStyle={{ backgroundColor: '#769656' }}
                         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
                         animationDuration={200}

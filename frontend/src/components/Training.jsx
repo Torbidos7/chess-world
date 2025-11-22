@@ -55,11 +55,23 @@ const Training = () => {
 
     function onDrop(sourceSquare, targetSquare) {
         try {
+            console.log('Attempting move:', sourceSquare, '->', targetSquare);
+            console.log('Current FEN:', game.fen());
+            console.log('Current Turn:', game.turn());
+
             const gameCopy = new Chess(game.fen());
+
+            // Check for promotion
+            const piece = gameCopy.get(sourceSquare);
+            const isPromotion = piece?.type === 'p' && (
+                (piece.color === 'w' && targetSquare[1] === '8') ||
+                (piece.color === 'b' && targetSquare[1] === '1')
+            );
+
             const move = gameCopy.move({
                 from: sourceSquare,
                 to: targetSquare,
-                promotion: 'q',
+                promotion: isPromotion ? 'q' : undefined,
             });
 
             if (move) {
@@ -67,7 +79,7 @@ const Training = () => {
                 return true;
             }
         } catch (error) {
-            console.error('Invalid move:', error);
+            console.error('Invalid move error:', error);
             return false;
         }
         return false;
