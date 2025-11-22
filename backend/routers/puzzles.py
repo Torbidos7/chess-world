@@ -1,4 +1,3 @@
-```python
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
@@ -9,6 +8,7 @@ from io import StringIO
 import os
 import random
 from ..services.puzzle_db import puzzle_db
+
 
 router = APIRouter(prefix="/api/puzzles", tags=["puzzles"])
 
