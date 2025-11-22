@@ -17,19 +17,42 @@ export const useChessGame = () => {
         };
 
         ws.onmessage = (event) => {
-            const fen = event.data;
-            console.log('Received FEN from backend:', fen);
+            const message = event.data;
+            console.log('Received message from backend:', message);
+
+            if (message.startsWith('error:')) {
+                console.error('Backend rejected move:', message);
+                // Revert to previous state by forcing a re-render with current game state
+                // We need to trigger a state update even if the object is the same, 
+                // but ideally we should undo the move in the local state if we want to be precise.
+                // However, since we don't track history deeply here, we can just create a new Chess instance
+                // from the *current* valid FEN (which we might have lost if we updated optimistically).
+
+                // BETTER APPROACH: Request the correct FEN from backend? 
+                // The backend only sends FEN on valid move.
+                // Let's just undo the last move locally if it was optimistic.
+                setGame(currentGame => {
+                    const newGame = new Chess(currentGame.fen());
+                    newGame.undo(); // Undo the optimistic move
+                    console.log('Reverted board to:', newGame.fen());
+                    return newGame;
+                });
+                return;
+            }
+
+            const fen = message;
 
             // Only update if FEN is actually different to avoid resetting during drag
             setGame(currentGame => {
+                // If the backend confirms the move, the FEN will match our optimistic FEN.
                 if (currentGame.fen() === fen) {
-                    console.log('FEN unchanged, skipping update');
+                    console.log('FEN matches current state (move confirmed), skipping re-render');
                     return currentGame;
                 }
 
                 try {
                     const newGame = new Chess(fen);
-                    console.log('Updated game from backend');
+                    console.log('Updated game from backend (sync)');
                     return newGame;
                 } catch (e) {
                     console.error('Invalid FEN received:', fen, e);

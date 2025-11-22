@@ -11,7 +11,9 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 # Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2-vision")
+# We will determine the model dynamically if the configured one is missing
+DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:27b")
+OLLAMA_MODEL = DEFAULT_MODEL
 
 class ChatRequest(BaseModel):
     prompt: str
@@ -58,6 +60,19 @@ async def chat_with_assistant(request: ChatRequest):
                     status_code=503,
                     detail="Ollama service is not running. Please start Ollama: 'ollama serve'"
                 )
+            
+            # Dynamic Model Selection
+            available_models = [m['name'] for m in health_check.json().get('models', [])]
+            global OLLAMA_MODEL
+            
+            # If current model not found, try to find a suitable fallback
+            if OLLAMA_MODEL not in available_models:
+                print(f"Configured model {OLLAMA_MODEL} not found. Available: {available_models}")
+                if "gemma3:27b" in available_models:
+                    OLLAMA_MODEL = "gemma3:27b"
+                elif available_models:
+                    OLLAMA_MODEL = available_models[0] # Fallback to first available
+                    
         except requests.exceptions.RequestException:
             raise HTTPException(
                 status_code=503,

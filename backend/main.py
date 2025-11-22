@@ -119,6 +119,7 @@ async def websocket_endpoint(websocket: WebSocket):
         
         while True:
             data = await websocket.receive_text()
+            print(f"Received move data: {data}")
             try:
                 move = chess.Move.from_uci(data)
                 if board.is_legal(move):
