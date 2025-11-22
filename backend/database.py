@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///./chess_world.db"
 
@@ -17,12 +18,13 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    password_hash = Column(String)  # Renamed from hashed_password for consistency
     elo = Column(Integer, default=1200)
     games_played = Column(Integer, default=0)
     wins = Column(Integer, default=0)
     losses = Column(Integer, default=0)
     draws = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 # Dependency to get DB session
 def get_db():

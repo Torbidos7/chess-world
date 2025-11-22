@@ -1,79 +1,66 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 
-export const useChessGame = () => {
+export const useChessGame = (gameId = 'default') => {
     const [game, setGame] = useState(new Chess());
     const [isConnected, setIsConnected] = useState(false);
-    const socketRef = useRef(null);
+    const wsRef = useRef(null);
 
     useEffect(() => {
-        // Connect to Backend WebSocket
-        // In production, this URL should be configurable
-        const ws = new WebSocket('ws://localhost:8000/ws/game');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/game?game_id=${gameId}`;
+
+        console.log('Connecting to WebSocket:', wsUrl);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
         ws.onopen = () => {
-            console.log('Connected to Chess Server');
+            console.log('WebSocket connected to game:', gameId);
             setIsConnected(true);
         };
 
         ws.onmessage = (event) => {
-            const message = event.data;
-            console.log('Received message from backend:', message);
+            const data = event.data;
+            console.log('WebSocket message received:', data);
 
-            if (message.startsWith('error:')) {
-                console.error('Backend rejected move:', message);
-                // Revert to previous state by forcing a re-render with current game state
-                // We need to trigger a state update even if the object is the same, 
-                // but ideally we should undo the move in the local state if we want to be precise.
-                // However, since we don't track history deeply here, we can just create a new Chess instance
-                // from the *current* valid FEN (which we might have lost if we updated optimistically).
-
-                // BETTER APPROACH: Request the correct FEN from backend? 
-                // The backend only sends FEN on valid move.
-                // Let's just undo the last move locally if it was optimistic.
+            // Check if it's an error message
+            if (data.startsWith('error:')) {
+                console.error('Move rejected by server:', data);
+                alert(data.substring(6)); // Remove "error:" prefix
+                // Revert to previous state by resetting game
                 setGame(currentGame => {
-                    const newGame = new Chess(currentGame.fen());
-                    newGame.undo(); // Undo the optimistic move
-                    console.log('Reverted board to:', newGame.fen());
-                    return newGame;
+                    const revertedGame = new Chess();
+                    revertedGame.load(currentGame.fen());
+                    return revertedGame;
                 });
                 return;
             }
 
-            const fen = message;
-
-            // Only update if FEN is actually different to avoid resetting during drag
+            // FEN update from server
+            const fen = data;
             setGame(currentGame => {
-                // If the backend confirms the move, the FEN will match our optimistic FEN.
-                if (currentGame.fen() === fen) {
-                    console.log('FEN matches current state (move confirmed), skipping re-render');
-                    return currentGame;
-                }
-
-                try {
-                    const newGame = new Chess(fen);
-                    console.log('Updated game from backend (sync)');
-                    return newGame;
-                } catch (e) {
-                    console.error('Invalid FEN received:', fen, e);
-                    return currentGame;
-                }
+                const newGame = new Chess(fen);
+                console.log('Board updated:', newGame.ascii());
+                return newGame;
             });
         };
 
-        ws.onclose = () => {
-            console.log('Disconnected from Chess Server');
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
             setIsConnected(false);
         };
 
-        socketRef.current = ws;
+        ws.onclose = () => {
+            console.log('WebSocket disconnected');
+            setIsConnected(false);
+        };
 
         return () => {
-            if (ws.readyState === 1) { // OPEN
+            if (ws.readyState === WebSocket.OPEN) {
                 ws.close();
             }
         };
-    }, []);
+    }, [gameId]);
 
     const makeMove = useCallback((sourceSquare, targetSquare) => {
         console.log('makeMove called:', sourceSquare, '->', targetSquare);
@@ -94,9 +81,9 @@ export const useChessGame = () => {
         if (move) {
             console.log('Move made locally:', move.san, 'UCI:', move.from + move.to);
             setGame(newGame); // Optimistic update
-            if (socketRef.current && socketRef.current.readyState === 1) {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
                 console.log('Sending move to backend:', move.from + move.to);
-                socketRef.current.send(move.from + move.to); // Send UCI move to backend
+                wsRef.current.send(move.from + move.to); // Send UCI move to backend
             }
             return true;
         }

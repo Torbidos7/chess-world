@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, User, Settings, MessageSquare, Menu, X, ChevronRight, ChevronLeft, GripVertical, Camera, Send } from 'lucide-react';
+import { LayoutDashboard, BookOpen, User, Settings, MessageSquare, Menu, X, ChevronRight, ChevronLeft, GripVertical, Camera, Send, LogOut, LogIn } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import ChessboardComponent from './components/Chessboard';
 import Training from './components/Training';
 import Problems from './components/Problems';
 import Profile from './components/Profile';
+import LoginModal from './components/LoginModal';
 import { useLLM } from './hooks/useLLM';
+import { useAuth } from './contexts/AuthContext';
 
 function App() {
   const [activeTab, setActiveTab] = useState('play');
@@ -14,6 +16,10 @@ function App() {
   const [rightSidebarWidth, setRightSidebarWidth] = useState(320);
   const [chatInput, setChatInput] = useState('');
   const [ollamaHealthy, setOllamaHealthy] = useState(null);
+  const [pendingScreenshot, setPendingScreenshot] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const { user, isAuthenticated, logout } = useAuth();
 
   const sidebarRef = useRef(null);
   const isResizingRef = useRef(false);
@@ -60,8 +66,19 @@ function App() {
 
     try {
       // Find the chessboard element
-      const chessboardElement = mainContentRef.current.querySelector('[id$="Board"]');
+      // Find the chessboard element - try multiple selectors
+      let chessboardElement = mainContentRef.current.querySelector('[id$="Board"]');
+
       if (!chessboardElement) {
+        // Fallback: try to find any element that looks like a board container
+        chessboardElement = mainContentRef.current.querySelector('div[data-boardid]') ||
+          mainContentRef.current.querySelector('.chessboard-container') ||
+          mainContentRef.current.querySelector('div[style*="aspect-ratio"]');
+      }
+
+      if (!chessboardElement) {
+        console.error('Screenshot failed: No chessboard element found. Available IDs:',
+          Array.from(mainContentRef.current.querySelectorAll('[id]')).map(el => el.id));
         alert('No chessboard found to capture');
         return null;
       }
@@ -79,12 +96,11 @@ function App() {
     }
   };
 
-  const handleScreenshotSend = async () => {
+  const handleScreenshotCapture = async () => {
     const imageBase64 = await captureScreenshot();
     if (imageBase64) {
-      const prompt = chatInput || "Analyze this chess position";
-      setChatInput('');
-      await sendMessage(prompt, null, imageBase64);
+      setPendingScreenshot(imageBase64);
+      setChatInput('Analyze this position');
     }
   };
 
@@ -92,8 +108,19 @@ function App() {
     if (!chatInput.trim()) return;
 
     const prompt = chatInput;
+    const screenshot = pendingScreenshot;
     setChatInput('');
-    await sendMessage(prompt);
+    setPendingScreenshot(null);
+    await sendMessage(prompt, null, screenshot);
+  };
+
+  const handleTabClick = (tab) => {
+    // Restrict non-Play tabs if not authenticated
+    if (!isAuthenticated && tab !== 'play') {
+      setShowLoginModal(true);
+      return;
+    }
+    setActiveTab(tab);
   };
 
   const renderContent = () => {
@@ -123,23 +150,46 @@ function App() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          <SidebarItem icon={<LayoutDashboard size={20} />} label="Play" active={activeTab === 'play'} onClick={() => setActiveTab('play')} isOpen={isSidebarOpen} />
-          <SidebarItem icon={<BookOpen size={20} />} label="Training" active={activeTab === 'training'} onClick={() => setActiveTab('training')} isOpen={isSidebarOpen} />
-          <SidebarItem icon={<Settings size={20} />} label="Problems" active={activeTab === 'problems'} onClick={() => setActiveTab('problems')} isOpen={isSidebarOpen} />
-          <SidebarItem icon={<User size={20} />} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} isOpen={isSidebarOpen} />
+          <SidebarItem icon={<LayoutDashboard size={20} />} label="Play" active={activeTab === 'play'} onClick={() => handleTabClick('play')} isOpen={isSidebarOpen} />
+          <SidebarItem icon={<BookOpen size={20} />} label="Training" active={activeTab === 'training'} onClick={() => handleTabClick('training')} isOpen={isSidebarOpen} locked={!isAuthenticated} />
+          <SidebarItem icon={<Settings size={20} />} label="Problems" active={activeTab === 'problems'} onClick={() => handleTabClick('problems')} isOpen={isSidebarOpen} locked={!isAuthenticated} />
+          <SidebarItem icon={<User size={20} />} label="Profile" active={activeTab === 'profile'} onClick={() => handleTabClick('profile')} isOpen={isSidebarOpen} locked={!isAuthenticated} />
         </nav>
 
         <div className="p-4 border-t border-gray-800">
           {isSidebarOpen ? (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-chess-accent flex items-center justify-center font-bold text-white">U</div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-white">User</div>
-                <div className="text-xs text-gray-500">Online</div>
+            isAuthenticated ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-chess-accent flex items-center justify-center font-bold text-white">
+                    {user?.username?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">{user?.username}</div>
+                    <div className="text-xs text-gray-500">ELO: {user?.elo || 1200}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 transition-colors"
+                >
+                  <LogOut size={16} />
+                  Logout
+                </button>
               </div>
-            </div>
+            ) : (
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-medium transition-colors"
+              >
+                <LogIn size={18} />
+                Login
+              </button>
+            )
           ) : (
-            <div className="w-8 h-8 rounded-full bg-chess-accent flex items-center justify-center font-bold text-white mx-auto">U</div>
+            <div className="w-8 h-8 rounded-full bg-chess-accent flex items-center justify-center font-bold text-white mx-auto cursor-pointer" onClick={() => setShowLoginModal(true)}>
+              {isAuthenticated ? (user?.username?.[0]?.toUpperCase() || 'U') : <LogIn size={16} />}
+            </div>
           )}
         </div>
       </div>
@@ -203,10 +253,10 @@ function App() {
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] p-3 rounded-lg ${msg.role === 'user'
-                    ? 'bg-chess-accent text-white'
-                    : msg.isError
-                      ? 'bg-red-900/40 border border-red-700 text-red-200'
-                      : 'bg-gray-800 border border-gray-700 text-gray-300'
+                  ? 'bg-chess-accent text-white'
+                  : msg.isError
+                    ? 'bg-red-900/40 border border-red-700 text-red-200'
+                    : 'bg-gray-800 border border-gray-700 text-gray-300'
                   }`}>
                   {msg.image && <div className="text-xs opacity-75 mb-1">📷 With screenshot</div>}
                   <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
@@ -243,15 +293,30 @@ function App() {
                 Ollama not running. Start: <code className="bg-gray-800 px-1 rounded">ollama serve</code>
               </div>
             )}
+            {pendingScreenshot && (
+              <div className="mb-2 relative">
+                <img
+                  src={`data:image/png;base64,${pendingScreenshot}`}
+                  alt="Chess board preview"
+                  className="w-full rounded border border-gray-700"
+                />
+                <button
+                  onClick={() => setPendingScreenshot(null)}
+                  className="absolute top-1 right-1 p-1 bg-red-600 hover:bg-red-500 rounded text-xs"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             <div className="flex gap-2 mb-2">
               <button
-                onClick={handleScreenshotSend}
-                disabled={llmLoading}
+                onClick={handleScreenshotCapture}
+                disabled={llmLoading || pendingScreenshot}
                 className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
-                title="Send screenshot of chessboard"
+                title="Capture screenshot of chessboard"
               >
                 <Camera size={16} />
-                Screenshot
+                {pendingScreenshot ? 'Captured' : 'Screenshot'}
               </button>
             </div>
             <div className="flex gap-2">
@@ -275,17 +340,25 @@ function App() {
           </div>
         </div>
       )}
+
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   );
 }
 
-const SidebarItem = ({ icon, label, active, onClick, isOpen }) => (
+const SidebarItem = ({ icon, label, active, onClick, isOpen, locked }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${active ? 'bg-chess-accent text-white shadow-lg shadow-blue-900/20' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${active ? 'bg-chess-accent text-white shadow-lg shadow-blue-900/20' : locked ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+    disabled={locked}
   >
-    <div className={`${active ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>{icon}</div>
-    {isOpen && <span className="font-medium">{label}</span>}
+    <div className={`${active ? 'text-white' : locked ? 'text-gray-600' : 'text-gray-400 group-hover:text-white'}`}>{icon}</div>
+    {isOpen && (
+      <div className="flex items-center justify-between flex-1">
+        <span className="font-medium">{label}</span>
+        {locked && <span className="text-xs text-gray-600">🔒</span>}
+      </div>
+    )}
   </button>
 );
 

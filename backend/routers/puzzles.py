@@ -88,7 +88,13 @@ async def get_daily_puzzle():
         )
         
     except requests.exceptions.RequestException as e:
+        print(f"Lichess API connection error: {e}")
         raise HTTPException(status_code=503, detail=f"Lichess API unavailable: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error in get_daily_puzzle: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/validate")
 async def validate_move(request: ValidateMoveRequest):
@@ -117,22 +123,33 @@ async def get_random_puzzle(
     """
     Get a random puzzle from Lichess
     
-    Note: Lichess API may have rate limits for random puzzles
+    Since Lichess doesn't have a free random endpoint, we cycle through a list of known puzzle IDs
     """
+    import random
+    
+    # Curated list of puzzle IDs for variety
+    PUZZLE_IDS = [
+        "tDqkO",  # Today's daily (changes daily)
+        "03WZC", "08gBV", "0D5LG", "0Fpy6", "0IWxg",
+        "1dzWZ", "2jqZ7", "3eQKK", "4mxHj", "5dG8U"
+    ]
+    
     try:
-        # Lichess doesn't have a direct random endpoint with filters in free API
-        # We'll use the daily puzzle for now
-        # In production, you might scrape or use a puzzle database
+        # Pick a random puzzle ID
+        puzzle_id = random.choice(PUZZLE_IDS)
         
-        params = {}
-        # Note: Lichess free API doesn't support these filters directly
-        # This is a placeholder for future enhancement
-        
+        # Try to fetch the specific puzzle
         response = requests.get(
-            f"{LICHESS_API_URL}/puzzle/daily",
-            params=params,
+            f"{LICHESS_API_URL}/puzzle/{puzzle_id}",
             timeout=10
         )
+        
+        # If specific puzzle fails, fall back to daily
+        if response.status_code != 200:
+            response = requests.get(
+                f"{LICHESS_API_URL}/puzzle/daily",
+                timeout=10
+            )
         
         if response.status_code != 200:
             raise HTTPException(
@@ -144,20 +161,33 @@ async def get_random_puzzle(
         puzzle_data = data.get("puzzle", {})
         game_data = data.get("game", {})
         
+        # Parse PGN to get FEN (same logic as daily)
+        pgn_text = game_data.get("pgn", "")
+        initial_ply = puzzle_data.get("initialPly", 0)
+        
+        import io
+        pgn_io = io.StringIO(pgn_text)
+        game = chess.pgn.read_game(pgn_io)
+        
+        if not game:
+            raise HTTPException(status_code=500, detail="Could not parse puzzle PGN")
+        
+        board = game.board()
+        moves = list(game.mainline_moves())
+        
+        for i in range(min(initial_ply, len(moves))):
+            board.push(moves[i])
+        
+        puzzle_fen = board.fen()
+        
         puzzle = Puzzle(
             id=puzzle_data.get("id", "random"),
-            fen=game_data.get("fen", ""),
+            fen=puzzle_fen,
             rating=puzzle_data.get("rating", 1500),
             themes=puzzle_data.get("themes", []),
             solution=puzzle_data.get("solution", []),
-            initial_move=puzzle_data.get("initialMove", "")
+            initial_move=""  # Calculated position, no initial move needed
         )
-        
-        # Filter by rating if specified
-        if rating_min and puzzle.rating < rating_min:
-            return {"message": "Puzzle below minimum rating, try again"}
-        if rating_max and puzzle.rating > rating_max:
-            return {"message": "Puzzle above maximum rating, try again"}
         
         return PuzzleResponse(
             puzzle=puzzle,

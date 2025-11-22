@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
-import { Trophy, RefreshCw, AlertCircle, CheckCircle, XCircle, Zap } from 'lucide-react';
+import { Trophy, RefreshCw, AlertCircle, CheckCircle, XCircle, Zap, Lightbulb } from 'lucide-react';
 import { usePuzzle } from '../hooks/usePuzzle';
 
 const Problems = () => {
     const [game, setGame] = useState(new Chess());
     const [status, setStatus] = useState('playing'); // 'playing', 'solved', 'failed'
     const [boardKey, setBoardKey] = useState(0); // Force board reset when puzzle changes
+    const [hintSquares, setHintSquares] = useState({});
+    const [playerColor, setPlayerColor] = useState('white'); // Color from player's perspective
 
     const {
         puzzle,
@@ -34,19 +36,9 @@ const Problems = () => {
 
                 const newGame = new Chess(puzzle.fen);
 
-                // If there's an initial move (opponent's move), play it
-                if (puzzle.initial_move) {
-                    console.log('Playing initial move:', puzzle.initial_move);
-                    const initialFrom = puzzle.initial_move.substring(0, 2);
-                    const initialTo = puzzle.initial_move.substring(2, 4);
-                    const initialPromo = puzzle.initial_move.length > 4 ? puzzle.initial_move.substring(4, 5) : undefined;
-                    const move = newGame.move({ from: initialFrom, to: initialTo, promotion: initialPromo });
-                    if (!move) {
-                        console.error('Failed to play initial move');
-                    } else {
-                        console.log('Initial move played:', move.san);
-                    }
-                }
+                // Determine player color from whose turn it is in the FEN
+                // The player (solver) plays as whoever's turn it is
+                setPlayerColor(newGame.turn() === 'w' ? 'white' : 'black');
 
                 setGame(newGame);
                 setStatus('playing');
@@ -133,7 +125,26 @@ const Problems = () => {
     }
 
     const handleNewPuzzle = () => {
-        fetchDailyPuzzle();
+        setHintSquares({});
+        fetchRandomPuzzle();
+    };
+
+    const handleHint = () => {
+        if (!puzzle || status !== 'playing') return;
+
+        const nextMove = puzzle.solution[solutionIndex];
+        if (nextMove) {
+            const from = nextMove.substring(0, 2);
+            const to = nextMove.substring(2, 4);
+
+            setHintSquares({
+                [from]: { backgroundColor: 'rgba(255, 255, 0, 0.5)' },
+                [to]: { backgroundColor: 'rgba(255, 255, 0, 0.3)' }
+            });
+
+            // Clear hint after 3 seconds
+            setTimeout(() => setHintSquares({}), 3000);
+        }
     };
 
     const handleRetry = () => {
@@ -162,9 +173,10 @@ const Problems = () => {
                         id="ProblemBoard"
                         position={game.fen()}
                         onPieceDrop={onDrop}
-                        boardOrientation={game.turn() === 'w' ? 'white' : 'black'}
+                        boardOrientation={playerColor}
                         customDarkSquareStyle={{ backgroundColor: '#769656' }}
                         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+                        customSquareStyles={hintSquares}
                         animationDuration={200}
                         arePiecesDraggable={status === 'playing'}
                     />
@@ -259,13 +271,22 @@ const Problems = () => {
                 )}
 
                 {puzzle && status === 'playing' && (
-                    <div className="mt-4 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
-                        <div className="text-sm text-blue-200">
-                            <strong>Hint:</strong> Find the best move for {game.turn() === 'w' ? 'White' : 'Black'}
+                    <div className="mt-4 space-y-3">
+                        <div className="p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+                            <div className="text-sm text-blue-200">
+                                <strong>Goal:</strong> Find the best move for {game.turn() === 'w' ? 'White' : 'Black'}
+                            </div>
+                            <div className="text-xs text-blue-300 mt-2">
+                                Solution progress: {solutionIndex} / {puzzle.solution.length} moves
+                            </div>
                         </div>
-                        <div className="text-xs text-blue-300 mt-2">
-                            Solution progress: {solutionIndex} / {puzzle.solution.length} moves
-                        </div>
+                        <button
+                            onClick={handleHint}
+                            className="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Lightbulb size={18} />
+                            Show Hint (3s)
+                        </button>
                     </div>
                 )}
             </div>

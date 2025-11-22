@@ -7,7 +7,7 @@ from typing import List
 from .database import SessionLocal, User, get_db
 
 # Import routers
-from .routers import engine, puzzles, pgn, users
+from .routers import engine, puzzles, pgn, users, auth
 from .services import llm
 
 app = FastAPI(
@@ -26,6 +26,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(engine.router)
 app.include_router(puzzles.router)
 app.include_router(pgn.router)
@@ -90,45 +91,68 @@ def read_user(username: str, db: Session = Depends(get_db)):
         }
     return user
 
-# Game Manager (simplified) - Each connection gets its own board
+# Game Manager - Supports room-based multiplayer with game IDs
 class GameManager:
     def __init__(self):
-        self.active_connections: dict = {}  # websocket -> board mapping
+        self.active_games: dict = {}  # game_id -> board
+        self.active_connections: dict = {}  # game_id -> list of websockets
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, game_id: str):
         await websocket.accept()
-        self.active_connections[websocket] = chess.Board()  # Each connection gets its own board
+        
+        # Create game if it doesn't exist
+        if game_id not in self.active_games:
+            self.active_games[game_id] = chess.Board()
+            self.active_connections[game_id] = []
+        
+        self.active_connections[game_id].append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            del self.active_connections[websocket]
+    def disconnect(self, websocket: WebSocket, game_id: str):
+        if game_id in self.active_connections:
+            if websocket in self.active_connections[game_id]:
+                self.active_connections[game_id].remove(websocket)
+            
+            # Clean up empty games
+            if len(self.active_connections[game_id]) == 0:
+                del self.active_connections[game_id]
+                del self.active_games[game_id]
 
-    def get_board(self, websocket: WebSocket):
-        return self.active_connections.get(websocket)
+    def get_board(self, game_id: str):
+        return self.active_games.get(game_id)
+    
+    async def broadcast(self, game_id: str, message: str):
+        """Broadcast message to all connections in a game"""
+        if game_id in self.active_connections:
+            for conn in self.active_connections[game_id]:
+                try:
+                    await conn.send_text(message)
+                except:
+                    pass  # Connection might be closed
 
 manager = GameManager()
 
 @app.websocket("/ws/game")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    board = manager.get_board(websocket)
+async def websocket_endpoint(websocket: WebSocket, game_id: str = "default"):
+    await manager.connect(websocket, game_id)
+    board = manager.get_board(game_id)
     
     try:
-        # Send initial position
+        # Send initial position to this client
         await websocket.send_text(board.fen())
         
         while True:
             data = await websocket.receive_text()
-            print(f"Received move data: {data}")
+            print(f"[Game {game_id}] Received move data: {data}")
             try:
                 move = chess.Move.from_uci(data)
                 if board.is_legal(move):
                     board.push(move)
-                    # Send updated position back to this client
-                    await websocket.send_text(board.fen())
+                    # Broadcast updated position to all players in this game
+                    await manager.broadcast(game_id, board.fen())
                 else:
                     await websocket.send_text(f"error:Invalid move {data}")
             except ValueError:
                 await websocket.send_text(f"error:Invalid UCI format {data}")
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        manager.disconnect(websocket, game_id)
+
