@@ -363,3 +363,4 @@ const SidebarItem = ({ icon, label, active, onClick, isOpen, locked }) => (
 );
 
 export default App;
+
