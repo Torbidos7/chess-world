@@ -11,5 +11,6 @@ bcrypt==4.0.0
 websockets
 requests
 psycopg2-binary
+psycopg
 zstandard
 email-validator
