@@ -2,15 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    stockfish \
-    && rm -rf /var/lib/apt/lists/*
+# Stockfish is optional — install silently, skip if unavailable
+RUN apt-get update && apt-get install -y --no-install-recommends stockfish 2>/dev/null || true && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/ .
+COPY backend/ ./backend/
 
-EXPOSE $PORT
+EXPOSE 8000
 
-CMD uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
