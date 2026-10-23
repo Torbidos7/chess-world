@@ -78,10 +78,11 @@ The backend is built with **Python (FastAPI)** and serves as the central nervous
 
 1.  **Backend**:
     ```bash
+    cd backend
     python3 -m venv venv
     source venv/bin/activate
-    pip install -r backend/requirements.txt
-    uvicorn backend.main:app --reload
+    pip install -r requirements.txt
+    uvicorn backend.main:app --reload --port 8001
     ```
 
 2.  **Frontend**:
@@ -90,6 +91,38 @@ The backend is built with **Python (FastAPI)** and serves as the central nervous
     npm install
     npm run dev
     ```
+
+## 🚀 Deployment
+
+### Frontend (GitHub Pages)
+Il push su `main` attiva la GitHub Action che builda e deploya su `gh-pages`.
+URL: `https://torbidos7.github.io/chess-world/`
+
+### Backend (Render.com + Supabase)
+
+**Supabase (DB):**
+1. Crea un progetto su [supabase.com](https://supabase.com)
+2. Vai a Project Settings → Database → Connection string
+3. Copia la stringa `postgresql://...`
+
+**Render (backend):**
+1. Crea un account su [render.com](https://render.com)
+2. Collega il repo GitHub → **New Web Service**
+3. Configura:
+   - **Runtime**: Docker
+   - **Repo**: `Torbidos7/chess-world`
+   - **Branch**: `main`
+   - **Build Command**: (Docker usa il Dockerfile)
+   - **Start Command**: (Docker lo gestisce)
+4. **Environment variables** (Render dashboard → Environment):
+   - `DATABASE_URL`: la stringa Supabase `postgresql://...`
+   - `SECRET_KEY`: una chiave casuale
+   - `CORS_ORIGINS`: `https://torbidos7.github.io`
+   - `STOCKFISH_PATH`: lascia vuoto (Stockfish non serve su Render)
+   - `CHESS_API_URL`: `https://chess-api.com/v1`
+   - `OLLAMA_BASE_URL`: lascia vuoto (Ollama non serve in produzione)
+5. Dopo il deploy, Render assegna una URL tipo `https://chess-world-api.onrender.com`
+6. Aggiorna `frontend/.env.production` con quella URL e pusha
 
 ## 👥 Contributors
 

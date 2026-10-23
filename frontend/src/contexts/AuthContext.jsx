@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { api, setToken, clearToken } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -7,43 +8,41 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check localStorage for existing session
-        const savedUser = localStorage.getItem('chess_user');
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
+        const saved = localStorage.getItem('chess_auth');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setToken(parsed.token);
+                setUser(parsed.user);
+            } catch {
+                localStorage.removeItem('chess_auth');
+            }
         }
         setLoading(false);
     }, []);
 
-    const login = (username, password) => {
-        // Simple demo login - in production, call backend API
-        const userData = {
-            username,
-            email: `${username}@chess.world`,
-            elo: 1200,
-            joined: new Date().toISOString()
-        };
+    const saveSession = (token, userData) => {
+        setToken(token);
         setUser(userData);
-        localStorage.setItem('chess_user', JSON.stringify(userData));
-        return Promise.resolve(userData);
+        localStorage.setItem('chess_auth', JSON.stringify({ token, user: userData }));
     };
 
-    const signup = (username, email, password) => {
-        // Simple demo signup
-        const userData = {
-            username,
-            email,
-            elo: 1200,
-            joined: new Date().toISOString()
-        };
-        setUser(userData);
-        localStorage.setItem('chess_user', JSON.stringify(userData));
-        return Promise.resolve(userData);
+    const login = async (username, password) => {
+        const res = await api.auth.login(username, password);
+        saveSession(res.access_token, res.user);
+        return res.user;
+    };
+
+    const signup = async (username, email, password) => {
+        const res = await api.auth.signup(username, email, password);
+        saveSession(res.access_token, res.user);
+        return res.user;
     };
 
     const logout = () => {
+        clearToken();
         setUser(null);
-        localStorage.removeItem('chess_user');
+        localStorage.removeItem('chess_auth');
     };
 
     return (

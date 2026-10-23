@@ -3,11 +3,12 @@ import { X, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginModal = ({ isOpen, onClose }) => {
-    const [mode, setMode] = useState('login'); // 'login' or 'signup'
+    const [mode, setMode] = useState('login');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
     const { login, signup } = useAuth();
 
     if (!isOpen) return null;
@@ -15,20 +16,22 @@ const LoginModal = ({ isOpen, onClose }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
+        setBusy(true);
         try {
             if (mode === 'login') {
                 await login(username, password);
             } else {
                 if (!email.includes('@')) {
-                    setError('Please enter a valid email');
+                    setError('Inserisci una email valida');
                     return;
                 }
                 await signup(username, email, password);
             }
             onClose();
         } catch (err) {
-            setError(err.message || 'Authentication failed');
+            setError(err.message || 'Autenticazione fallita');
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -93,9 +96,10 @@ const LoginModal = ({ isOpen, onClose }) => {
 
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition-colors"
+                        disabled={busy}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-colors"
                     >
-                        {mode === 'login' ? 'Login' : 'Create Account'}
+                        {busy ? 'Caricamento...' : (mode === 'login' ? 'Login' : 'Create Account')}
                     </button>
                 </form>
 

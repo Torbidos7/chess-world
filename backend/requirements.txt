@@ -7,5 +7,9 @@ pydantic
 python-multipart
 python-jose[cryptography]
 passlib[bcrypt]
+bcrypt==4.0.0
 websockets
 requests
+psycopg2-binary
+zstandard
+email-validator
