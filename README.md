@@ -1,130 +1,80 @@
-# Chess World
+# Chess World ♟️
 
-- **PGN Loading**: Upload your own PGN files (or use our examples like `CatalanClosed.pgn`) to analyze specific games or openings.
-- **Legal Move Highlighting**: Drag a piece to see all possible legal moves, helping you learn piece movement and avoid blunders.
-- **Evaluation Bar**: Visual feedback on who is winning (Positive for White, Negative for Black).
+**Play, analyze, and improve at chess — powered by AI.**
 
-![Training Mode](docs/screenshots/training.png)
-A modern, full-featured chess application built with React, Python (FastAPI), and AI integration.
+Chess World is a full-featured chess platform where you can play multiplayer games, solve puzzles, analyze your games with a chess engine, and chat with an AI assistant — all in one place.
 
 ![Home Page](docs/screenshots/home.png)
 
-## Features
+## ✨ Features
 
-- **Play Mode**: Interactive chessboard with real-time rule enforcement and multiplayer support
-  - **Multiplayer Game Sharing**: Share games via URL with unique Game IDs
-  - **Real-time Synchronization**: All players in the same game see moves instantly
-- **Training Mode**: Load PGNs, analyze with Stockfish, and step through games
-- **Problems Mode**: Solve chess puzzles fetched from Lichess
-  - **Hint System**: Get visual hints showing which pieces to move
-  - **Random Puzzles**: Fetch different puzzles from a curated collection
-  - **Adaptive Board Orientation**: Board stays oriented from solver's perspective
-- **AI Assistant**: Chat with a local LLM (Ollama) for position analysis
-  - **Screenshot Preview**: Capture board positions and preview before sending
-  - **Context-Aware Analysis**: Assistant understands current board state
-- **Authentication**: Secure login/signup system with session persistence
-  - **Protected Features**: Training, Problems, and Profile require authentication
-  - **User Profiles**: Track ELO and game statistics
-- **Profile**: Track your stats and progress
+### 🎮 Play Mode
+Interactive chessboard with drag-and-drop, legal move highlighting, and **real-time multiplayer**. Share a game URL to invite a friend — moves sync instantly via WebSocket.
 
-[Detailed Feature Explanation](features_explained.md) | [Future Suggestions](suggestions.md)
+![Training Mode](docs/screenshots/training.png)
 
-![Profile Mode](docs/screenshots/profile.png)
+### 📚 Training Mode
+Upload your PGN files to replay and analyze games. Navigate move by move with engine evaluation (Stockfish or chess-api.com) and see the best moves, alternative lines, and win probability.
 
----
+### 🧩 Problems Mode
+Solve chess puzzles fetched from Lichess or a local database. Get visual hints, adaptive board orientation, and track your rating. New puzzle at every click.
 
-## 🔧 Backend Implementation
+### 🤖 AI Assistant
+Chat with a local LLM (Ollama) that understands the board position. Send screenshots for visual analysis, ask for move suggestions, or get explanations of tactical themes.
 
-The backend is built with **Python (FastAPI)** and serves as the central nervous system of the application.
+### 🔐 Authentication
+Secure signup/login with JWT. Your profile, ELO, and game history are persisted in the database. Protected features unlock after authentication.
 
-### **1. API Structure (`main.py`)**
-- **FastAPI**: We chose FastAPI for its speed and automatic documentation.
-- **Endpoints**:
-    - `GET /`: Health check.
-    - `GET /users/{username}`: Fetches user profile data from the database.
-    - `WS /ws/game`: The WebSocket endpoint for real-time game communication.
-
-### **2. Real-time Communication (WebSockets)**
-- We use FastAPI's `WebSocket` support to create a persistent connection between the client and server.
-- **GameManager Class**: Manages active connections and the global game state. When a player makes a move, it is sent to the server, validated by `python-chess`, and then broadcast to all other connected clients.
-
-### **3. Database (`database.py`)**
-- **SQLAlchemy**: We use SQLAlchemy as the ORM (Object Relational Mapper) to interact with the database.
-- **SQLite**: For development, we use a local SQLite file (`chess_world.db`).
-- **User Model**: Defines the schema for storing user data (username, elo, stats).
-
-### **4. Game Logic**
-- **python-chess**: This powerful library handles all the heavy lifting for chess rules (move generation, validation, FEN parsing) on the server side, ensuring no illegal moves can be forced by a hacked client.
+### 📊 Profile
+Track your ELO rating, win/loss statistics, and recent activity.
 
 ---
 
-## 🚀 Deployment Guide
+## 🏗️ Architecture
 
-### **Frontend (GitHub Pages)**
-1.  Build the project:
-    ```bash
-    cd frontend
-    npm run build
-    ```
-2.  Deploy the `dist` folder to GitHub Pages (automated via GitHub Actions).
+| Layer | Stack |
+|---|---|
+| **Frontend** | React 18 + Vite + Tailwind CSS |
+| **Backend** | FastAPI (Python) |
+| **Database** | PostgreSQL via Supabase (SQLite in dev) |
+| **Real-time** | WebSocket (FastAPI) |
+| **Chess Engine** | Stockfish + chess-api.com |
+| **AI** | Ollama (local LLM) |
 
-### **Backend (e.g., Render.com)**
-1.  Create a new Web Service on Render.
-2.  Connect this repository.
-3.  Set Build Command: `pip install -r backend/requirements.txt`
-4.  Set Start Command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+---
 
-## 💻 Local Development
+## 🚀 Deployments
 
-1.  **Backend**:
-    ```bash
-    cd backend
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    uvicorn backend.main:app --reload --port 8001
-    ```
+| Component | Platform | Status |
+|---|---|---|
+| **Frontend** | GitHub Pages → [torbidos7.github.io/chess-world](https://torbidos7.github.io/chess-world/) | ✅ Live |
+| **Backend** | Render.com → `chess-world-api.onrender.com` | 🔄 In setup |
+| **Database** | Supabase (PostgreSQL) | 🔄 In setup |
 
-2.  **Frontend**:
-    ```bash
-    cd frontend
-    npm install
-    npm run dev
-    ```
+See [DEPLOY.md](DEPLOY.md) for detailed deployment instructions.
 
-## 🚀 Deployment
+---
 
-### Frontend (GitHub Pages)
-Il push su `main` attiva la GitHub Action che builda e deploya su `gh-pages`.
-URL: `https://torbidos7.github.io/chess-world/`
+## 🧑‍💻 Local Development
 
-### Backend (Render.com + Supabase)
+```bash
+# Backend
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8001
 
-**Supabase (DB):**
-1. Crea un progetto su [supabase.com](https://supabase.com)
-2. Vai a Project Settings → Database → Connection string
-3. Copia la stringa `postgresql://...`
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
 
-**Render (backend):**
-1. Crea un account su [render.com](https://render.com)
-2. Collega il repo GitHub → **New Web Service**
-3. Configura:
-   - **Runtime**: Docker
-   - **Repo**: `Torbidos7/chess-world`
-   - **Branch**: `main`
-   - **Build Command**: (Docker usa il Dockerfile)
-   - **Start Command**: (Docker lo gestisce)
-4. **Environment variables** (Render dashboard → Environment):
-   - `DATABASE_URL`: la stringa Supabase `postgresql://...`
-   - `SECRET_KEY`: una chiave casuale
-   - `CORS_ORIGINS`: `https://torbidos7.github.io`
-   - `STOCKFISH_PATH`: lascia vuoto (Stockfish non serve su Render)
-   - `CHESS_API_URL`: `https://chess-api.com/v1`
-   - `OLLAMA_BASE_URL`: lascia vuoto (Ollama non serve in produzione)
-5. Dopo il deploy, Render assegna una URL tipo `https://chess-world-api.onrender.com`
-6. Aggiorna `frontend/.env.production` con quella URL e pusha
+Open `http://localhost:5173` and start playing.
 
-## 👥 Contributors
+---
 
-- **Google Antigravity** - *AI Co-pilot & Architect*
-- **Daniele Buschi** - *Lead Developer*
+## 📄 License
+
+MIT — © 2025 Daniele Buschi
