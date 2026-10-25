@@ -10,6 +10,6 @@ passlib[bcrypt]
 bcrypt==4.0.0
 websockets
 requests
-psycopg-binary
+psycopg[binary]
 zstandard
 email-validator
