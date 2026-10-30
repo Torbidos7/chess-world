@@ -104,9 +104,9 @@ npm run dev
 
 Apri `http://localhost:5173`.
 
-## Requisito pre-commit
+## Requisito pre-push
 
-**Prima di committare qualsiasi evolutiva/feature**: aprire il giro completo in locale (backend su `:8001` + frontend su `:5173`) e far vedere all'utente il risultato (UI, flusso, funzionalità). Solo dopo la verifica visiva da parte dell'utente si può committare e pushare.
+**Prima di pushare qualsiasi evolutiva/feature**: aprire il giro completo in locale (backend su `:8001` + frontend su `:5173`) e far vedere all'utente il risultato (UI, flusso, funzionalità). Solo dopo la verifica visiva da parte dell'utente si può pushare.
 
 ```bash
 # Terminal 1 — backend (Supabase via backend/.env)
