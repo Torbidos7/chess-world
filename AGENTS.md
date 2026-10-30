@@ -87,6 +87,18 @@ Chess World è una piattaforma scacchistica full-feature: multiplayer in tempo r
    - Frontend: sezione settings nella chat per scegliere provider/modello
    - Nota: oggi la chat usa solo Ollama (locale, non disponibile in produzione).
 
+8. **Matchmaking via link di condivisione (anche non loggati)** — oggi il WS `/ws/game` accetta qualunque mossa legale da qualunque connessione (`main.py`), il link condiviso punta alla stessa stanza ma non crea una vera partita. Obiettivo: pairing guest-based sul `game_id`, colori assegnati (primo arrivato bianco), turni forzati lato server, stato "in attesa avversario"/inizio partita. Frontend `Chessboard.jsx`: rimuovere la restrizione login per il match via link.
+
+9. **Rivista logica problemi (risoluzione + estrazione nuovi)** — la `solution` di Lichess include tutte le mosse dall'inizio ma il `fen` è già calcolato dopo `initialPly` (indice sbagliato, niente alternanza giocatore/avversario); `/api/puzzles/validate` è uno stub che ritorna sempre `correct:True`; `/random` usa ID hardcoded quasi tutti morti → fallback su daily; `/local` fallisce perché `lichess_db_puzzle.csv.zst` manca. Fix: tagliare `solution[initial_ply:]`, dividere mosse giocatore/avversario, validazione non-stub; per nuovi problemi rendere disponibile il DB locale o filtrare per rating/theme, sostituire gli ID hardcoded.
+
+10. **Persistenza partite + statistiche/ELO** — i modelli `Game`/`User` e gli endpoint `/api/users/{username}/games` + UI Profile esistono, ma `GameManager` non salva mai partite finite né aggiorna `games_played/wins/losses/draws/elo`. Il profilo resta sempre a 0 e history vuota. Serve persistenza partite + rilevamento risultato + aggiornamento ELO.
+
+11. **Time controls / orologi nel gioco** — il matchmaking memorizza `time_control` ma non c'è alcuna logica di clock nel loop WS (niente incremento, timeout, flag). Implementare gli orologi usando il `time_control` del matchmaking.
+
+12. **Invito partita reale** — `users.py /invite` è uno stub che ritorna "pending" finto; implementare un flusso reale di invito/accettazione.
+
+13. **Tracciamento progresso puzzle** — il modello `PuzzleProgress` è inutilizzato: serve endpoint + UI per salvare le risoluzioni e aggiornare il rating puzzle.
+
 ## Comandi dev
 
 ```bash
