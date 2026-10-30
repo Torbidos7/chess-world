@@ -7,6 +7,10 @@ import os
 import asyncio
 import requests
 
+from ..config import load_dotenv
+
+load_dotenv()
+
 router = APIRouter(prefix="/api/engine", tags=["engine"])
 
 # Configuration

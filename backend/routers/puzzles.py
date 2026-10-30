@@ -7,6 +7,10 @@ import chess.pgn
 from io import StringIO
 import os
 import random
+from ..config import load_dotenv
+
+load_dotenv()
+
 from ..services.puzzle_db import puzzle_db
 
 

@@ -7,6 +7,10 @@ import os
 import json
 import chess
 
+from ..config import load_dotenv
+
+load_dotenv()
+
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 # Configuration

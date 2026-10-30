@@ -22,9 +22,20 @@ frontend/dist/
 examples/
 docs/puzzles/
 
+# Agent coding files (scratch/working notes — non committare)
 future_implementation
 future_implementation_for_production.md
 future_implementation_for_production.md
 test.md
 test_results.md
 task.md
+todo.md
+plan.md
+notes.md
+scratch/
+*.agent.md
+.opencode/
+.opencode/
+agent_*.md
+agent_*.json
+agent_*.txt

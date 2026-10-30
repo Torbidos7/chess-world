@@ -7,6 +7,10 @@ from jose import JWTError, jwt
 from typing import Optional
 import os
 
+from ..config import load_dotenv
+
+load_dotenv()
+
 from ..database import get_db, User
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
