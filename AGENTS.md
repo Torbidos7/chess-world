@@ -82,6 +82,11 @@ Chess World è una piattaforma scacchistica full-feature: multiplayer in tempo r
 
 6. **E2E test manuale dal frontend** — flusso completo: GitHub Pages → login/signup → Profile → backend Render → Supabase. Verifica che la GitHub Action rebuild il frontend a ogni push su `main`.
 
+7. **FUTURA EVOLUTIVA — Configurabilità del provider LLM nella chat**: rendere la chat AI collegabile a un modello **locale** (Ollama, LM Studio, ds4, ecc.) oppure a un modello **remoto tramite API key** di un proprio provider. Da implementare in una sessione futura (dopo la collection Postman), non in questa.
+   - Backend: configurazione provider via env var (`LLM_PROVIDER=local|remote`, `OLLAMA_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, ecc.) e router `/api/llm` che dispatca sul provider selezionato
+   - Frontend: sezione settings nella chat per scegliere provider/modello
+   - Nota: oggi la chat usa solo Ollama (locale, non disponibile in produzione).
+
 ## Comandi dev
 
 ```bash
