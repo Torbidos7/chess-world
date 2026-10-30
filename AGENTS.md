@@ -104,6 +104,23 @@ npm run dev
 
 Apri `http://localhost:5173`.
 
+## Requisito pre-commit
+
+**Prima di committare qualsiasi evolutiva/feature**: aprire il giro completo in locale (backend su `:8001` + frontend su `:5173`) e far vedere all'utente il risultato (UI, flusso, funzionalità). Solo dopo la verifica visiva da parte dell'utente si può committare e pushare.
+
+```bash
+# Terminal 1 — backend (Supabase via backend/.env)
+cd backend
+source venv/bin/activate
+uvicorn backend.main:app --reload --port 8001
+
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+```
+
+Apri `http://localhost:5173` → mostra all'utente il flusso da testare, poi procedi con commit/push.
+
 ## Note tecniche importanti
 
 - Backend Render **sleepa dopo 30 min di inattività** (free tier). Prima richiesta post-wake ~30s.
