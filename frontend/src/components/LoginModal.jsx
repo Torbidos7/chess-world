@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
 
 const LoginModal = ({ isOpen, onClose }) => {
     const [mode, setMode] = useState('login');
@@ -10,8 +13,6 @@ const LoginModal = ({ isOpen, onClose }) => {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const { login, signup } = useAuth();
-
-    if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -36,86 +37,84 @@ const LoginModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50" onClick={onClose}>
-            <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        {mode === 'login' ? <LogIn size={24} /> : <UserPlus size={24} />}
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="w-full max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        {mode === 'login' ? <LogIn size={20} /> : <UserPlus size={20} />}
                         {mode === 'login' ? 'Login' : 'Sign Up'}
-                    </h2>
-                    <button onClick={onClose} className="p-1 hover:bg-gray-800 rounded text-gray-400">
-                        <X size={20} />
-                    </button>
-                </div>
+                    </DialogTitle>
+                    <DialogDescription>
+                        {mode === 'login' ? 'Accedi al tuo account Chess World' : 'Crea un nuovo account Chess World'}
+                    </DialogDescription>
+                </DialogHeader>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                        <input
+                    <div className="space-y-1">
+                        <label className="block text-sm font-medium text-muted-foreground">Username</label>
+                        <Input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                             placeholder="Enter username"
                         />
                     </div>
 
                     {mode === 'signup' && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                            <input
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-muted-foreground">Email</label>
+                            <Input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
-                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                                 placeholder="Enter email"
                             />
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                        <input
+                    <div className="space-y-1">
+                        <label className="block text-sm font-medium text-muted-foreground">Password</label>
+                        <Input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
                             minLength={6}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500"
                             placeholder="Enter password"
                         />
                     </div>
 
                     {error && (
-                        <div className="p-3 bg-red-900/30 border border-red-700 rounded-lg text-red-200 text-sm">
+                        <div className="p-3 bg-destructive/10 border border-destructive rounded-lg text-destructive text-sm">
                             {error}
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={busy}
-                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-colors"
+                        className="w-full"
                     >
                         {busy ? 'Caricamento...' : (mode === 'login' ? 'Login' : 'Create Account')}
-                    </button>
+                    </Button>
                 </form>
 
-                <div className="mt-4 text-center">
-                    <button
+                <DialogFooter>
+                    <Button
+                        variant="ghost"
                         onClick={() => {
                             setMode(mode === 'login' ? 'signup' : 'login');
                             setError('');
                         }}
-                        className="text-sm text-blue-400 hover:text-blue-300"
+                        className="w-full justify-center text-primary"
                     >
                         {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Login'}
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 

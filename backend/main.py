@@ -12,7 +12,7 @@ from typing import List
 from .database import SessionLocal, User, get_db
 
 # Import routers
-from .routers import engine, puzzles, pgn, users, auth
+from .routers import engine, puzzles, pgn, users, auth, matchmaking
 from .services import llm
 
 app = FastAPI(
@@ -37,6 +37,7 @@ app.include_router(engine.router)
 app.include_router(puzzles.router)
 app.include_router(pgn.router)
 app.include_router(users.router)
+app.include_router(matchmaking.router)
 app.include_router(llm.router)
 
 @app.on_event("startup")

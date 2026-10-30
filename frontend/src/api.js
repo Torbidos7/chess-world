@@ -44,6 +44,15 @@ export const api = {
     },
     users: {
         profile: (username) => request(`/api/users/${username}/profile`),
+        games: (username) => request(`/api/users/${username}/games`),
+        friends: (username) => request(`/api/users/${username}/friends`),
+        friendRequests: (username) => request(`/api/users/${username}/friends/requests`),
+        addFriend: (username, friendUsername) =>
+            request(`/api/users/${username}/friends/add`, { method: 'POST', body: { friend_username: friendUsername } }),
+        acceptFriend: (username, friendUsername) =>
+            request(`/api/users/${username}/friends/accept?friend_username=${friendUsername}`, { method: 'POST' }),
+        removeFriend: (username, friendUsername) =>
+            request(`/api/users/${username}/friends/remove?friend_username=${friendUsername}`, { method: 'DELETE' }),
     },
     puzzles: {
         daily: () => request('/api/puzzles/daily'),
@@ -54,6 +63,12 @@ export const api = {
     engine: {
         evaluate: (fen) => request('/api/engine/evaluate', { method: 'POST', body: { fen } }),
         available: () => request('/api/engine/engines/available'),
+    },
+    matchmaking: {
+        join: (username, timeControl) =>
+            request('/api/matchmaking/queue', { method: 'POST', body: { username, time_control: timeControl } }),
+        status: (username) => request(`/api/matchmaking/status?username=${username}`),
+        leave: (username) => request(`/api/matchmaking/leave?username=${username}`, { method: 'DELETE' }),
     },
     pgn: {
         upload: (formData) => {

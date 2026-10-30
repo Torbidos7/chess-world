@@ -7,8 +7,10 @@ export const useChessGame = (gameId = 'default') => {
     const wsRef = useRef(null);
 
     useEffect(() => {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/game?game_id=${gameId}`;
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+        const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws';
+        const wsHost = apiUrl.replace(/^https?:\/\//, '');
+        const wsUrl = `${wsProtocol}://${wsHost}/ws/game?game_id=${gameId}`;
 
         console.log('Connecting to WebSocket:', wsUrl);
         const ws = new WebSocket(wsUrl);
@@ -96,10 +98,19 @@ export const useChessGame = (gameId = 'default') => {
         // TODO: Send reset command to backend
     }, []);
 
+    const undoMove = useCallback(() => {
+        setGame(currentGame => {
+            const newGame = new Chess(currentGame.fen());
+            newGame.undo();
+            return newGame;
+        });
+    }, []);
+
     return {
         game,
         makeMove,
         resetGame,
+        undoMove,
         isConnected
     };
 };
