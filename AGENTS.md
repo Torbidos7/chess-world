@@ -74,6 +74,14 @@ Chess World è una piattaforma scacchistica full-feature: multiplayer in tempo r
 
 4. **Post go-live**: game history / friends (modelli `Game` e `Friendship`), matchmaking e time controls, temi e mobile.
 
+5. **Collection Postman per test API** — creare una collection Postman (o script curl) per testare ogni endpoint singolarmente, senza passare dal frontend:
+   - `backend/tests/api_collection.json` (collection Postman v2 esportabile)
+   - Copre: `/api/auth/signup`, `/api/auth/login`, `/api/users/{username}/profile`, `/api/engine/evaluate`, `/api/puzzles/daily`, `/api/pgn/upload`, `/api/llm/chat`, `/health`
+   - Include variabili di ambiente (`BASE_URL`, `TOKEN`) per riusare il JWT dopo il login
+   - Utile per verificare il backend prima/indipendentemente dal frontend
+
+6. **E2E test manuale dal frontend** — flusso completo: GitHub Pages → login/signup → Profile → backend Render → Supabase. Verifica che la GitHub Action rebuild il frontend a ogni push su `main`.
+
 ## Comandi dev
 
 ```bash
