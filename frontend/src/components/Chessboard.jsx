@@ -23,7 +23,7 @@ function formatClock(seconds) {
 }
 
 const ChessboardComponent = () => {
-    const { user: authUser, isAuthenticated } = useAuth();
+    const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
     const [gameId, setGameId] = useState(() => {
         // Get gameId from URL or generate new one
         const urlParams = new URLSearchParams(window.location.search);
@@ -43,6 +43,7 @@ const ChessboardComponent = () => {
         username: authUser?.username,
         color: matchColor,
         timeControl: matchTc,
+        authLoading,
     });
     const [moveFrom, setMoveFrom] = useState(null);
     const [optionSquares, setOptionSquares] = useState({});

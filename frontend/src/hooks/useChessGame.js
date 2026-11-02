@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 
 export const useChessGame = (gameId = 'default', opts = {}) => {
-    const { username = null, color = null, timeControl = '10+0' } = opts;
+    const { username = null, color = null, timeControl = '10+0', authLoading = false } = opts;
     const [game, setGame] = useState(new Chess());
     const [isConnected, setIsConnected] = useState(false);
     const [playerColor, setPlayerColor] = useState(null);
@@ -17,6 +17,10 @@ export const useChessGame = (gameId = 'default', opts = {}) => {
     const wsRef = useRef(null);
 
     useEffect(() => {
+        // Aspetta che l'auth sia risolta: evita la riconnessione della WS quando lo
+        // username diventa disponibile (che corrompe l'assegnazione bianco/nero).
+        if (authLoading) return;
+
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
         const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws';
         const wsHost = apiUrl.replace(/^https?:\/\//, '');
@@ -88,7 +92,7 @@ export const useChessGame = (gameId = 'default', opts = {}) => {
                 ws.close();
             }
         };
-    }, [gameId, username, color, timeControl]);
+    }, [gameId, username, color, timeControl, authLoading]);
 
     const makeMove = useCallback((sourceSquare, targetSquare) => {
         // Turni forzati: solo se è il colore del giocatore e la partita è in corso
