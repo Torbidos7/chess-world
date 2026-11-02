@@ -27,8 +27,8 @@ Chess World è una piattaforma scacchistica full-feature: multiplayer in tempo r
 | Component | Platform | Status |
 |---|---|---|
 | **Frontend** | GitHub Pages `https://torbidos7.github.io/chess-world/` | ✅ Live |
-| **Backend** | Render `chess-world-api.onrender.com` | 🔄 In setup |
-| **Database** | Supabase (PostgreSQL) | 🔄 In setup |
+| **Backend** | Render `chess-world-api.onrender.com` | ✅ Attivo (`torbidos7-chess-world.onrender.com`) |
+| **Database** | Supabase (PostgreSQL) | ✅ Attivo, pooler porta `6543` |
 
 ## Cosa è stato fatto (MVP go-live)
 
@@ -53,59 +53,62 @@ Chess World è una piattaforma scacchistica full-feature: multiplayer in tempo r
 ## Stato attuale
 
 - **GitHub Pages**: live, funziona (`gh-pages` branch + workflow OK)
-- **Backend Render**: il driver PostgreSQL ora funziona (`psycopg[binary]`). Serve verificare la connessione DB.
-- **Database Supabase**: progetto creato, `DATABASE_URL` su Render in setup.
+- **Backend Render**: attivo su `torbidos7-chess-world.onrender.com`; il driver PostgreSQL funziona (`psycopg[binary]`); `DATABASE_URL` su Supabase via pooler porta `6543` (già configurata).
+- **Database Supabase**: attivo, dati persistiti. Tabella `game_invites` aggiunta (inviti partita).
+
+## Fatto in questa sessione (evolutive 7-12 + wake)
+
+1. **Health call di wake** — `frontend/src/api.js` `wakeBackend()` + `App.jsx:41` chiama `GET /health` solo se `VITE_API_URL` è `https` (Render), fire-and-forget per risvegliare il backend dopo la sleep dei 30 min.
+
+2. **Matchmaking via link + guest-based (punto 8)** — `backend/main.py` `GameManager`/`RoomGame` riscritto:
+   - pairing guest sul `game_id` (primo arrivo bianco, secondo nero, terzo+ spectator)
+   - turni forzati lato server (la mossa è accettata solo se il colore della connessione coincide con `board.turn`)
+   - stato `waiting`/`playing`/`finished` con broadcast di start
+   - protocollo WS JSON (`init` con `color`, `start`, `move`, `clock`, `end`, `error`, `spectator`)
+   - colore opzionale via query (`?color=`) per matchmaking/inviti; `frontend/src/hooks/useChessGame.js` e `Chessboard.jsx` aggiornati (stato "In attesa avversario", turno forzato client-side)
+
+3. **Orologi / time controls (punto 11)** — clock per-game da `time_control` (`N+M` → base minuti + incremento), task asyncio `clock_loop` che decrementa il clock del giocatore al turno e broadcast ogni 0.25s; su timeout → `finish("timeout", ...)`. Display orologi in `Chessboard.jsx` (`formatClock`).
+
+4. **Persistenza partite + ELO (punto 10)** — al termine (`checkmate`/`draw`/`timeout`/`forfeit`) `persist()` salva la riga `Game` e aggiorna `games_played/wins/losses/draws/elo` (formula K=30, expected score) per entrambi i giocatori con username. Rimossa la mock `GET /users/{username}` (ora 404 se non esiste).
+
+5. **Rivista logica puzzle (punto 9)** — `backend/routers/puzzles.py`:
+   - `/daily` usa `puzzle.fen` diretto dall'API (niente parsing PGN); `solution` già dalla posizione del puzzle
+   - `/validate` non più stub: cache in-memory della soluzione per `puzzle_id` (alias `daily`), confronto reale con `solution_index` (indici pari = giocatore, dispari = avversario)
+   - `/random` e `/local` servono dal **bundle locale offline** (`backend/docs/puzzles/puzzles.json`, 40 puzzle mate-in-1 reali generati da `generate_bundle.py`) con filtro `rating_min/max/theme` — niente più ID hardcoded morti né dipendenza dal csv da 500MB
+   - `backend/services/puzzle_db.py` legge il bundle con path assoluto
+
+6. **Invito partita reale (punto 12)** — modello `GameInvite` in `backend/database.py`; `backend/routers/users.py`:
+   - `POST /{username}/invite` (crea invito pending con `time_control`)
+   - `GET /{username}/invites/pending`, `POST /{username}/invites/{id}/accept|decline`, `POST /{username}/invites/{id}/status` (poll per l'invitante)
+   - su accept genera `game_id` condiviso e colori (sender bianco, accettante nero)
+   - UI inviti in `frontend/src/components/Profile.jsx` (invia/accedta/rifiuta/poll), colori via `?color=` nella URL
+
+7. **LLM provider configurabile (punto 7)** — `backend/services/llm.py`:
+   - env var `LLM_PROVIDER=local|remote`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`
+   - `/api/llm/chat` dispatca: `remote` → OpenAI-compatible (`/chat/completions`), `local` → Ollama
+   - nuovo `GET /api/llm/provider` (provider attivo + modelli per provider)
+   - `ChatRequest` accetta `provider`/`model` opzionali per override
+   - UI settings provider/modello nella chat (`App.jsx` + `frontend/src/hooks/useLLM.js` `fetchProvider`)
 
 ## Prossimi passi
 
-1. **Render**: fixare `DATABASE_URL` — usare porta `6542` (pooler, IPv4) e aggiungere `?sslmode=require`:
-   ```
-   postgresql://postgres.<project>:<password>@db.<project>.supabase.co:6542/postgres?sslmode=require
-   ```
-   Poi redeploy con cache clear (o aggiungere env var fittizia tipo `FORCE_REBUILD=1` per invalidare la cache Docker).
+1. **E2E test manuale dal frontend** — flusso completo: GitHub Pages → login/signup → Profile → backend Render → Supabase. Verifica che la GitHub Action rebuild il frontend a ogni push su `main`.
 
-2. **Env var Render** (oltre a `DATABASE_URL`, `SECRET_KEY`, `CORS_ORIGINS`):
-   | Variabile | Valore |
-   |---|---|
-   | `CHESS_API_URL` | `https://chess-api.com/v1` |
-   | `LICHESS_API_URL` | `https://lichess.org/api` |
+2. **Matchmaking**: la UI Quick Match resta login-based (serve username per la coda); il match via link condiviso è ora guest-based. Verificare il flusso condiviso end-to-end.
 
-3. **Frontend**: una volta live l'URL Render, aggiornare `frontend/.env.production` e pushare su `main` per rebuild.
+3. **Tracciamento progresso puzzle (punto 13)** — il modello `PuzzleProgress` è ancora inutilizzato: serve endpoint + UI per salvare le risoluzioni e aggiornare il rating puzzle.
 
-4. **Post go-live**: game history / friends (modelli `Game` e `Friendship`), matchmaking e time controls, temi e mobile.
+4. **Persistenza forfeit/abort**: oggi l'abbandono a partita in corso viene persistere come forfeit win; valutare se contare come `aborted` senza variazione ELO.
 
-5. **Collection Postman per test API** — creare una collection Postman (o script curl) per testare ogni endpoint singolarmente, senza passare dal frontend:
-   - `backend/tests/api_collection.json` (collection Postman v2 esportabile)
-   - Copre: `/api/auth/signup`, `/api/auth/login`, `/api/users/{username}/profile`, `/api/engine/evaluate`, `/api/puzzles/daily`, `/api/pgn/upload`, `/api/llm/chat`, `/health`
-   - Include variabili di ambiente (`BASE_URL`, `TOKEN`) per riusare il JWT dopo il login
-   - Utile per verificare il backend prima/indipendentemente dal frontend
-
-6. **E2E test manuale dal frontend** — flusso completo: GitHub Pages → login/signup → Profile → backend Render → Supabase. Verifica che la GitHub Action rebuild il frontend a ogni push su `main`.
-
-7. **FUTURA EVOLUTIVA — Configurabilità del provider LLM nella chat**: rendere la chat AI collegabile a un modello **locale** (Ollama, LM Studio, ds4, ecc.) oppure a un modello **remoto tramite API key** di un proprio provider. Da implementare in una sessione futura (dopo la collection Postman), non in questa.
-   - Backend: configurazione provider via env var (`LLM_PROVIDER=local|remote`, `OLLAMA_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, ecc.) e router `/api/llm` che dispatca sul provider selezionato
-   - Frontend: sezione settings nella chat per scegliere provider/modello
-   - Nota: oggi la chat usa solo Ollama (locale, non disponibile in produzione).
-
-8. **Matchmaking via link di condivisione (anche non loggati)** — oggi il WS `/ws/game` accetta qualunque mossa legale da qualunque connessione (`main.py`), il link condiviso punta alla stessa stanza ma non crea una vera partita. Obiettivo: pairing guest-based sul `game_id`, colori assegnati (primo arrivato bianco), turni forzati lato server, stato "in attesa avversario"/inizio partita. Frontend `Chessboard.jsx`: rimuovere la restrizione login per il match via link.
-
-9. **Rivista logica problemi (risoluzione + estrazione nuovi)** — la `solution` di Lichess include tutte le mosse dall'inizio ma il `fen` è già calcolato dopo `initialPly` (indice sbagliato, niente alternanza giocatore/avversario); `/api/puzzles/validate` è uno stub che ritorna sempre `correct:True`; `/random` usa ID hardcoded quasi tutti morti → fallback su daily; `/local` fallisce perché `lichess_db_puzzle.csv.zst` manca. Fix: tagliare `solution[initial_ply:]`, dividere mosse giocatore/avversario, validazione non-stub; per nuovi problemi rendere disponibile il DB locale o filtrare per rating/theme, sostituire gli ID hardcoded.
-
-10. **Persistenza partite + statistiche/ELO** — i modelli `Game`/`User` e gli endpoint `/api/users/{username}/games` + UI Profile esistono, ma `GameManager` non salva mai partite finite né aggiorna `games_played/wins/losses/draws/elo`. Il profilo resta sempre a 0 e history vuota. Serve persistenza partite + rilevamento risultato + aggiornamento ELO.
-
-11. **Time controls / orologi nel gioco** — il matchmaking memorizza `time_control` ma non c'è alcuna logica di clock nel loop WS (niente incremento, timeout, flag). Implementare gli orologi usando il `time_control` del matchmaking.
-
-12. **Invito partita reale** — `users.py /invite` è uno stub che ritorna "pending" finto; implementare un flusso reale di invito/accettazione.
-
-13. **Tracciamento progresso puzzle** — il modello `PuzzleProgress` è inutilizzato: serve endpoint + UI per salvare le risoluzioni e aggiornare il rating puzzle.
+5. **Collection Postman**: aggiornare `backend/tests/api_collection.json` con i nuovi endpoint (inviti partita, `/api/llm/provider`, `/api/puzzles/validate` con id reale).
 
 ## Comandi dev
 
 ```bash
 # Backend (porta 8001 — la 8000 è occupata dal modello ds4)
-cd backend
-source venv/bin/activate
-pip install -r requirements.txt
+# NB: avviare dalla root del repo, non da backend/ (import 'backend.main' richiede la root)
+cd chess-world
+source backend/venv/bin/activate
 uvicorn backend.main:app --reload --port 8001
 
 # Frontend
@@ -122,8 +125,8 @@ Apri `http://localhost:5173`.
 
 ```bash
 # Terminal 1 — backend (Supabase via backend/.env)
-cd backend
-source venv/bin/activate
+cd chess-world   # dalla root del repo (import 'backend.main')
+source backend/venv/bin/activate
 uvicorn backend.main:app --reload --port 8001
 
 # Terminal 2 — frontend
@@ -140,7 +143,7 @@ Apri `http://localhost:5173` → mostra all'utente il flusso da testare, poi pro
 - **Ollama** è locale, non disponibile in produzione → chat AI solo in dev.
 - **Stockfish** non è su Render → engine analysis usa `chess-api.com`.
 - `psycopg` (nuovo driver) richiede `psycopg[binary]` per funzionare senza `libpq` nel container Docker.
-- Render **non ha IPv6**: Supabase risolve IPv6 → usare pooler porta `6542` per forzare IPv4.
+- **Supabase**: `DATABASE_URL` usa il pooler porta `6543` (configurata e funzionante). Se Render non risolve IPv6, usare `6542` per forzare IPv4.
 
 ## Debug deploy Render
 

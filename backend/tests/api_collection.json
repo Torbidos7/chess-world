@@ -1,0 +1,485 @@
+{
+  "info": {
+    "name": "Chess World API",
+    "description": "Collection Postman per testare ogni endpoint del backend Chess World singolarmente, senza passare dal frontend. Usa le variabili di ambiente BASE_URL e TOKEN (TOKEN viene salvato automaticamente dopo login/signup).",
+    "_postman_id": "chess-world-api-001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const j = pm.response.json();",
+                  "pm.environment.set('TOKEN', j.access_token);",
+                  "console.log('TOKEN salvato:', j.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"testuser@example.com\",\n    \"password\": \"test123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/signup",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "signup"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.response.to.have.status(200);",
+                  "const j = pm.response.json();",
+                  "pm.environment.set('TOKEN', j.access_token);",
+                  "console.log('TOKEN salvato:', j.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"test123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/profile",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Game History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/games?limit=20",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "games"],
+              "query": [{ "key": "limit", "value": "20" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"friend_username\": \"{{FRIEND}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/friends/add",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "friends", "add"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Friend Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/friends/accept?friend_username={{FRIEND}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "friends", "accept"],
+              "query": [{ "key": "friend_username", "value": "{{FRIEND}}" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Friends",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/friends",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "friends"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Incoming Friend Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/friends/requests",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "friends", "requests"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Friend",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/users/{{USERNAME}}/friends/remove?friend_username={{FRIEND}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "users", "{{USERNAME}}", "friends", "remove"],
+              "query": [{ "key": "friend_username", "value": "{{FRIEND}}" }]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Matchmaking",
+      "item": [
+        {
+          "name": "Join Queue",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{USERNAME}}\",\n    \"time_control\": \"3+0\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/matchmaking/queue",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "matchmaking", "queue"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Matchmaking Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/matchmaking/status?username={{USERNAME}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "matchmaking", "status"],
+              "query": [{ "key": "username", "value": "{{USERNAME}}" }]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Leave Queue",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/matchmaking/leave?username={{USERNAME}}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "matchmaking", "leave"],
+              "query": [{ "key": "username", "value": "{{USERNAME}}" }]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Engine",
+      "item": [
+        {
+          "name": "Evaluate Position",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"fen\": \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\",\n    \"depth\": 15,\n    \"engine_type\": \"stockfish\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/engine/evaluate",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "engine", "evaluate"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Available Engines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/engine/engines/available",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "engine", "engines", "available"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Puzzles",
+      "item": [
+        {
+          "name": "Daily Puzzle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/puzzles/daily",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "puzzles", "daily"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Random Puzzle",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/puzzles/random",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "puzzles", "random"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Move",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"fen\": \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\",\n    \"move\": \"e2e4\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/puzzles/validate",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "puzzles", "validate"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PGN",
+      "item": [
+        {
+          "name": "Upload PGN",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/your/game.pgn"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/pgn/upload",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "pgn", "upload"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get PGN Game",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/pgn/game/{{PGN_SESSION}}/0",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "pgn", "game", "{{PGN_SESSION}}", "0"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Navigate PGN Move",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"session_id\": \"{{PGN_SESSION}}\",\n    \"game_index\": 0,\n    \"move_number\": 5\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/pgn/navigate",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "pgn", "navigate"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "LLM Assistant",
+      "item": [
+        {
+          "name": "Chat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"prompt\": \"Qual è la migliore mossa qui?\",\n    \"fen\": \"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/llm/chat",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "llm", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LLM Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/llm/health",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "llm", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LLM Models",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/api/llm/models",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "llm", "models"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "System",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/health",
+              "host": ["{{BASE_URL}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Root / Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/",
+              "host": ["{{BASE_URL}}"],
+              "path": []
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "USERNAME",
+      "value": "testuser",
+      "type": "string"
+    },
+    {
+      "key": "FRIEND",
+      "value": "frienduser",
+      "type": "string"
+    },
+    {
+      "key": "PGN_SESSION",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

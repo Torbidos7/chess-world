@@ -35,7 +35,17 @@ async function request(path, options = {}) {
     return res.json();
 }
 
+export function wakeBackend() {
+    // Risveglia il backend su Render (sleep dopo 30 min di inattività).
+    // Solo in produzione (VITE_API_URL https), fire-and-forget, non blocca l'avvio.
+    if (!BASE_URL.startsWith('https')) return;
+    fetch(`${BASE_URL}/health`, { method: 'GET' }).catch(() => {});
+}
+
 export const api = {
+    system: {
+        health: () => request('/health'),
+    },
     auth: {
         login: (username, password) =>
             request('/api/auth/login', { method: 'POST', body: { username, password } }),
@@ -53,12 +63,24 @@ export const api = {
             request(`/api/users/${username}/friends/accept?friend_username=${friendUsername}`, { method: 'POST' }),
         removeFriend: (username, friendUsername) =>
             request(`/api/users/${username}/friends/remove?friend_username=${friendUsername}`, { method: 'DELETE' }),
+        invites: {
+            send: (username, receiver, timeControl) =>
+                request(`/api/users/${username}/invite`, { method: 'POST', body: { receiver, time_control: timeControl } }),
+            pending: (username) => request(`/api/users/${username}/invites/pending`),
+            accept: (username, inviteId) =>
+                request(`/api/users/${username}/invites/${inviteId}/accept`, { method: 'POST' }),
+            decline: (username, inviteId) =>
+                request(`/api/users/${username}/invites/${inviteId}/decline`, { method: 'POST' }),
+            status: (username, inviteId) =>
+                request(`/api/users/${username}/invites/${inviteId}/status`, { method: 'POST' }),
+        },
     },
     puzzles: {
         daily: () => request('/api/puzzles/daily'),
-        random: () => request('/api/puzzles/random'),
+        random: (params = '') => request(`/api/puzzles/random${params}`),
         local: () => request('/api/puzzles/local'),
-        validate: (fen, move) => request('/api/puzzles/validate', { method: 'POST', body: { fen, move } }),
+        validate: (puzzle_id, move_uci, solution_index) =>
+            request('/api/puzzles/validate', { method: 'POST', body: { puzzle_id, move_uci, solution_index } }),
     },
     engine: {
         evaluate: (fen) => request('/api/engine/evaluate', { method: 'POST', body: { fen } }),

@@ -73,6 +73,17 @@ class PuzzleProgress(Base):
     rating = Column(Integer, default=1200)
     solved_at = Column(DateTime, nullable=True)
 
+class GameInvite(Base):
+    __tablename__ = "game_invites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender = Column(String, index=True)
+    receiver = Column(String, index=True)
+    status = Column(String, default="pending")  # pending | accepted | declined
+    game_id = Column(String, nullable=True)
+    time_control = Column(String, default="10+0")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 def get_db():
     db = SessionLocal()
     try:

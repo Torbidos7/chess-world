@@ -1,16 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 
-export const useChessGame = (gameId = 'default') => {
+export const useChessGame = (gameId = 'default', opts = {}) => {
+    const { username = null, color = null, timeControl = '10+0' } = opts;
     const [game, setGame] = useState(new Chess());
     const [isConnected, setIsConnected] = useState(false);
+    const [playerColor, setPlayerColor] = useState(null);
+    const [whiteTime, setWhiteTime] = useState(600);
+    const [blackTime, setBlackTime] = useState(600);
+    const [turn, setTurn] = useState('white');
+    const [gameStatus, setGameStatus] = useState('waiting');
+    const [result, setResult] = useState(null);
+    const [winner, setWinner] = useState(null);
+    const [whiteUser, setWhiteUser] = useState(null);
+    const [blackUser, setBlackUser] = useState(null);
     const wsRef = useRef(null);
 
     useEffect(() => {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
         const wsProtocol = apiUrl.startsWith('https') ? 'wss' : 'ws';
         const wsHost = apiUrl.replace(/^https?:\/\//, '');
-        const wsUrl = `${wsProtocol}://${wsHost}/ws/game?game_id=${gameId}`;
+        const params = new URLSearchParams();
+        params.set('game_id', gameId);
+        if (username) params.set('username', username);
+        if (color) params.set('color', color);
+        params.set('time_control', timeControl);
+        const wsUrl = `${wsProtocol}://${wsHost}/ws/game?${params.toString()}`;
 
         console.log('Connecting to WebSocket:', wsUrl);
         const ws = new WebSocket(wsUrl);
@@ -22,29 +37,40 @@ export const useChessGame = (gameId = 'default') => {
         };
 
         ws.onmessage = (event) => {
-            const data = event.data;
-            console.log('WebSocket message received:', data);
+            let msg;
+            try {
+                msg = JSON.parse(event.data);
+            } catch {
+                console.error('Bad WS message:', event.data);
+                return;
+            }
+            console.log('WS message:', msg.type, msg);
 
-            // Check if it's an error message
-            if (data.startsWith('error:')) {
-                console.error('Move rejected by server:', data);
-                alert(data.substring(6)); // Remove "error:" prefix
-                // Revert to previous state by resetting game
-                setGame(currentGame => {
-                    const revertedGame = new Chess();
-                    revertedGame.load(currentGame.fen());
-                    return revertedGame;
-                });
+            if (msg.type === 'error') {
+                alert(msg.message);
                 return;
             }
 
-            // FEN update from server
-            const fen = data;
-            setGame(currentGame => {
-                const newGame = new Chess(fen);
-                console.log('Board updated:', newGame.ascii());
-                return newGame;
-            });
+            // Aggiorna lo stato condiviso (fen/turno/orologi/status)
+            if (msg.fen) {
+                setGame(new Chess(msg.fen));
+            }
+            if (msg.turn) setTurn(msg.turn);
+            if (msg.white_time !== undefined) setWhiteTime(msg.white_time);
+            if (msg.black_time !== undefined) setBlackTime(msg.black_time);
+            if (msg.status) setGameStatus(msg.status);
+            if (msg.result) setResult(msg.result);
+            if (msg.winner) setWinner(msg.winner);
+            if (msg.white_user) setWhiteUser(msg.white_user);
+            if (msg.black_user) setBlackUser(msg.black_user);
+
+            if (msg.type === 'init') {
+                setPlayerColor(msg.color);
+                setGameStatus(msg.status);
+            }
+            if (msg.type === 'start') {
+                setGameStatus('playing');
+            }
         };
 
         ws.onerror = (error) => {
@@ -62,13 +88,15 @@ export const useChessGame = (gameId = 'default') => {
                 ws.close();
             }
         };
-    }, [gameId]);
+    }, [gameId, username, color, timeControl]);
 
     const makeMove = useCallback((sourceSquare, targetSquare) => {
-        console.log('makeMove called:', sourceSquare, '->', targetSquare);
+        // Turni forzati: solo se è il colore del giocatore e la partita è in corso
+        if (gameStatus !== 'playing') return false;
+        if (!playerColor || playerColor !== turn) return false;
+
         let move = null;
         const newGame = new Chess(game.fen());
-
         try {
             move = newGame.move({
                 from: sourceSquare,
@@ -81,21 +109,27 @@ export const useChessGame = (gameId = 'default') => {
         }
 
         if (move) {
-            console.log('Move made locally:', move.san, 'UCI:', move.from + move.to);
             setGame(newGame); // Optimistic update
             if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                console.log('Sending move to backend:', move.from + move.to);
-                wsRef.current.send(move.from + move.to); // Send UCI move to backend
+                wsRef.current.send(JSON.stringify({ type: 'move', uci: move.from + move.to }));
             }
             return true;
         }
         return false;
-    }, [game]);
+    }, [game, gameStatus, playerColor, turn]);
 
     const resetGame = useCallback(() => {
         const newGame = new Chess();
         setGame(newGame);
-        // TODO: Send reset command to backend
+        setResult(null);
+        setWinner(null);
+        setGameStatus('waiting');
+        setTurn('white');
+        setPlayerColor(null);
+        setWhiteTime(600);
+        setBlackTime(600);
+        setWhiteUser(null);
+        setBlackUser(null);
     }, []);
 
     const undoMove = useCallback(() => {
@@ -111,6 +145,15 @@ export const useChessGame = (gameId = 'default') => {
         makeMove,
         resetGame,
         undoMove,
-        isConnected
+        isConnected,
+        playerColor,
+        whiteTime,
+        blackTime,
+        turn,
+        gameStatus,
+        result,
+        winner,
+        whiteUser,
+        blackUser,
     };
 };

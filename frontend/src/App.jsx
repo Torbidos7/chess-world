@@ -6,6 +6,7 @@ import Training from './components/Training';
 import Problems from './components/Problems';
 import Profile from './components/Profile';
 import LoginModal from './components/LoginModal';
+import { wakeBackend } from './api';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
 import { Avatar, AvatarFallback } from './components/ui/avatar';
@@ -31,13 +32,32 @@ function App() {
   const messagesEndRef = useRef(null);
   const mainContentRef = useRef(null);
 
-  const { loading: llmLoading, error: llmError, messages, sendMessage, checkHealth } = useLLM();
+  const { loading: llmLoading, error: llmError, messages, sendMessage, checkHealth, fetchProvider } = useLLM();
+
+  const [providerCfg, setProviderCfg] = useState(null);
+  const [llmProvider, setLlmProvider] = useState('local');
+  const [llmModel, setLlmModel] = useState('');
 
   // Check Ollama health on mount
   useEffect(() => {
     checkHealth().then(health => {
       setOllamaHealthy(health?.ollama_running && health?.model_available);
     });
+  }, []);
+
+  // Carica la configurazione del provider LLM (local/remote) per la chat
+  useEffect(() => {
+    fetchProvider().then(cfg => {
+      setProviderCfg(cfg);
+      if (cfg) {
+        setLlmProvider(cfg.provider || 'local');
+      }
+    });
+  }, []);
+
+  // Risveglia il backend su Render (solo produzione) all'avvio dell'app
+  useEffect(() => {
+    wakeBackend();
   }, []);
 
   // Auto-scroll chat to bottom
@@ -116,7 +136,7 @@ function App() {
     const screenshot = pendingScreenshot;
     setChatInput('');
     setPendingScreenshot(null);
-    await sendMessage(prompt, null, screenshot);
+    await sendMessage(prompt, null, screenshot, null, llmProvider, llmModel || undefined);
   };
 
   const handleTabClick = (tab) => {
@@ -278,6 +298,39 @@ function App() {
             >
               <X size={18} />
             </Button>
+          </div>
+
+          {/* Provider Settings */}
+          <div className="px-4 py-2 border-b border-sidebar-border bg-muted/20 space-y-2">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">LLM Provider</div>
+            <div className="flex gap-2">
+              <select
+                value={llmProvider}
+                onChange={e => setLlmProvider(e.target.value)}
+                className="flex-1 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+              >
+                {providerCfg?.providers?.map(p => (
+                  <option key={p} value={p}>{p === 'local' ? 'Ollama (locale)' : 'Remote (API key)'}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={llmModel}
+                onChange={e => setLlmModel(e.target.value)}
+                className="flex-1 bg-muted border border-border rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+              >
+                <option value="">Auto (configurato)</option>
+                {(providerCfg?.models?.[llmProvider] || []).map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            {llmProvider === 'remote' && !providerCfg?.remote_configured && (
+              <div className="text-xs text-destructive">
+                Provider remoto non configurato (manca OPENAI_API_KEY nel backend).
+              </div>
+            )}
           </div>
 
           {/* Messages */}

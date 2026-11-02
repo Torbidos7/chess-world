@@ -15,6 +15,13 @@ const TIME_CONTROLS = [
     { label: 'Classic', value: '10+0', icon: '♟️' },
 ];
 
+function formatClock(seconds) {
+    const s = Math.max(seconds, 0);
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
 const ChessboardComponent = () => {
     const { user: authUser, isAuthenticated } = useAuth();
     const [gameId, setGameId] = useState(() => {
@@ -23,13 +30,25 @@ const ChessboardComponent = () => {
         return urlParams.get('gameId') || Math.random().toString(36).substring(2, 10);
     });
     const [copied, setCopied] = useState(false);
-    const { game, makeMove, resetGame, undoMove, isConnected } = useChessGame(gameId);
+    const [matchTc, setMatchTc] = useState(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('tc') || '3+0';
+    });
+    const [matchColor, setMatchColor] = useState(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const c = urlParams.get('color');
+        return c === 'white' || c === 'black' ? c : null;
+    });
+    const { game, makeMove, resetGame, undoMove, isConnected, playerColor, whiteTime, blackTime, turn, gameStatus, result, winner, whiteUser, blackUser } = useChessGame(gameId, {
+        username: authUser?.username,
+        color: matchColor,
+        timeControl: matchTc,
+    });
     const [moveFrom, setMoveFrom] = useState(null);
     const [optionSquares, setOptionSquares] = useState({});
 
     // Quick Match state
     const [showMatchModal, setShowMatchModal] = useState(false);
-    const [matchTc, setMatchTc] = useState('3+0');
     const [matchStatus, setMatchStatus] = useState(null);
     const [matchPoll, setMatchPoll] = useState(null);
 
@@ -39,6 +58,7 @@ const ChessboardComponent = () => {
         const res = await api.matchmaking.join(authUser.username, matchTc);
         if (res.status === 'paired') {
             setGameId(res.game_id);
+            setMatchColor(res.color);
             setMatchStatus('paired');
             setShowMatchModal(false);
         } else {
@@ -49,6 +69,7 @@ const ChessboardComponent = () => {
                     clearInterval(interval);
                     setMatchPoll(null);
                     setGameId(s.game_id);
+                    setMatchColor(s.color);
                     setMatchStatus('paired');
                     setShowMatchModal(false);
                 }
@@ -80,7 +101,7 @@ const ChessboardComponent = () => {
     }, [gameId]);
 
     const handleCopyLink = async () => {
-        const shareUrl = `${window.location.origin}${window.location.pathname}?gameId=${gameId}`;
+        const shareUrl = `${window.location.origin}${window.location.pathname}?gameId=${gameId}&tc=${matchTc}`;
         try {
             await navigator.clipboard.writeText(shareUrl);
             setCopied(true);
@@ -108,6 +129,44 @@ const ChessboardComponent = () => {
         return moveSuccessful;
     }
 
+    function highlightMoves(square) {
+        const moves = game.moves({ square, verbose: true });
+        const styles = {};
+        styles[square] = { backgroundColor: 'rgba(255, 255, 0, 0.4)' };
+        moves.forEach(m => { styles[m.to] = { backgroundColor: 'rgba(0, 128, 0, 0.35)' }; });
+        setOptionSquares(styles);
+    }
+
+    function handleSquareClick(square) {
+        if (gameStatus !== 'playing' || !playerColor) return;
+        const piece = game.get(square);
+        const myColor = playerColor === 'white' ? 'w' : 'b';
+
+        if (!moveFrom) {
+            // Seleziona solo i pezzi propri
+            if (piece && piece.color === myColor) {
+                setMoveFrom(square);
+                highlightMoves(square);
+            }
+            return;
+        }
+
+        if (square === moveFrom) {
+            setMoveFrom(null);
+            setOptionSquares({});
+            return;
+        }
+
+        const result = makeMove(moveFrom, square);
+        setMoveFrom(null);
+        setOptionSquares({});
+        if (!result && piece && piece.color === myColor) {
+            // nuova selezione su un altro pezzo proprio
+            setMoveFrom(square);
+            highlightMoves(square);
+        }
+    }
+
     return (
         <div className="w-full max-w-6xl mx-auto p-4">
             {/* Connection Status Indicator */}
@@ -123,7 +182,10 @@ const ChessboardComponent = () => {
                             id="PlayBoard"
                             position={game.fen()}
                             onPieceDrop={onDrop}
-                            arePiecesDraggable={true}
+                            onSquareClick={handleSquareClick}
+                            arePiecesDraggable={gameStatus === 'playing'}
+                            boardOrientation={playerColor === 'black' ? 'black' : 'white'}
+                            customSquareStyles={optionSquares}
                             customDarkSquareStyle={{ backgroundColor: '#769656' }}
                             customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
                             animationDuration={200}
@@ -132,6 +194,22 @@ const ChessboardComponent = () => {
 
                     {/* Game Status */}
                     <div className="text-center space-y-1">
+                        {gameStatus === 'waiting' && (
+                            <div className="text-lg font-bold text-yellow-500">
+                                In attesa avversario... condividi il link per giocare
+                            </div>
+                        )}
+                        {gameStatus === 'playing' && playerColor && (
+                            <div className="text-lg font-semibold text-foreground">
+                                Giochi con {playerColor === 'white' ? 'Bianco' : 'Nero'}
+                                {turn === playerColor ? ' — il tuo turno' : ' — turno avversario'}
+                            </div>
+                        )}
+                        {result && (
+                            <div className="text-xl font-bold text-primary">
+                                Partita conclusa: {result} {winner ? `(vince ${winner})` : ''}
+                            </div>
+                        )}
                         {game.isCheckmate() && (
                             <div className="text-2xl font-bold text-red-500">
                                 Checkmate! {game.turn() === 'w' ? 'Black' : 'White'} wins!
@@ -150,6 +228,16 @@ const ChessboardComponent = () => {
                         <div className="text-muted-foreground mt-2">
                             Turn: {game.turn() === 'w' ? 'White' : 'Black'}
                         </div>
+                        {gameStatus === 'playing' && (
+                            <div className="flex items-center justify-center gap-4 text-sm">
+                                <div className={`font-mono ${turn === 'white' ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                                    ⚪ {formatClock(whiteTime)} {whiteUser || 'Guest'}
+                                </div>
+                                <div className={`font-mono ${turn === 'black' ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                                    ⚫ {formatClock(blackTime)} {blackUser || 'Guest'}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Award, TrendingUp, Clock, Calendar, Percent, Activity, Users, Swords, UserPlus } from 'lucide-react';
+import { User, Award, TrendingUp, Clock, Calendar, Percent, Activity, Users, Swords, UserPlus, Gamepad2, Check, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api';
 import { Button } from './ui/button';
@@ -13,9 +13,13 @@ const Profile = () => {
     const [games, setGames] = useState([]);
     const [friends, setFriends] = useState([]);
     const [requests, setRequests] = useState([]);
+    const [invites, setInvites] = useState([]);
     const [loading, setLoading] = useState(true);
     const [friendInput, setFriendInput] = useState('');
     const [friendMsg, setFriendMsg] = useState('');
+    const [inviteInput, setInviteInput] = useState('');
+    const [inviteMsg, setInviteMsg] = useState('');
+    const [sentInvites, setSentInvites] = useState([]);
 
     const loadData = () => {
         if (!authUser) return;
@@ -30,7 +34,10 @@ const Profile = () => {
             .catch(() => setFriends([]));
         api.users.friendRequests(authUser.username)
             .then(data => setRequests(data.requests || []))
-            .catch(() => setRequests([]))
+            .catch(() => setRequests([]));
+        api.users.invites.pending(authUser.username)
+            .then(data => setInvites(data.invites || []))
+            .catch(() => setInvites([]))
             .finally(() => setLoading(false));
     };
 
@@ -67,6 +74,68 @@ const Profile = () => {
             loadData();
         } catch (e) {
             setFriendMsg(e.message);
+        }
+    };
+
+    const setGameUrl = (gameId, color = '') => {
+        const url = new URL(window.location);
+        url.searchParams.set('gameId', gameId);
+        if (color) url.searchParams.set('color', color);
+        window.history.replaceState({}, '', url);
+    };
+
+    const sendInvite = async (receiver) => {
+        if (!receiver.trim()) return;
+        try {
+            const res = await api.users.invites.send(authUser.username, receiver.trim(), '10+0');
+            setInviteMsg(`Invito partita inviato a ${receiver.trim()}`);
+            setSentInvites(prev => [...prev, { id: res.invitation_id, receiver: receiver.trim() }]);
+            setInviteInput('');
+            loadData();
+        } catch (e) {
+            setInviteMsg(e.message);
+        }
+    };
+
+    const acceptInvite = async (invite) => {
+        try {
+            const res = await api.users.invites.accept(authUser.username, invite.id);
+            setGameUrl(res.game_id, res.color);
+            setInviteMsg(`Partita avviata con ${res.opponent}! Vai su Play (giochi Nero).`);
+            loadData();
+        } catch (e) {
+            setInviteMsg(e.message);
+        }
+    };
+
+    const declineInvite = async (invite) => {
+        try {
+            await api.users.invites.decline(authUser.username, invite.id);
+            setInviteMsg(`Invito da ${invite.from} rifiutato`);
+            loadData();
+        } catch (e) {
+            setInviteMsg(e.message);
+        }
+    };
+
+    // Poll inviti inviati: se accettati, apri la partita
+    const pollSentInvites = async () => {
+        if (!authUser) return;
+        try {
+            // l'invitante deve sapere quando l'avversario accetta:
+            // poll sull'ultimo invito inviato tramite /invites/{id}/status
+            if (sentInvites.length > 0) {
+                const latest = sentInvites[sentInvites.length - 1];
+                const st = await api.users.invites.status(authUser.username, latest.id);
+                if (st.status === 'accepted' && st.game_id) {
+                    setGameUrl(st.game_id, st.color);
+                    setInviteMsg(`Partita avviata con ${st.opponent}! Vai su Play (giochi Bianco).`);
+                    setSentInvites([]);
+                    loadData();
+                }
+            }
+        } catch (e) {
+            // silenzioso
         }
     };
 
@@ -254,10 +323,51 @@ const Profile = () => {
                                 friends.map(f => (
                                     <div key={f.username} className="flex items-center justify-between bg-muted rounded-lg px-3 py-2 text-sm">
                                         <span className="text-foreground">{f.username}</span>
-                                        <Button variant="ghost" size="sm" onClick={() => removeFriend(f.username)} className="text-red-500 text-xs font-bold">Remove</Button>
+                                        <div className="flex items-center gap-1">
+                                            <Button variant="secondary" size="sm" onClick={() => sendInvite(f.username)} className="text-cyan-500 text-xs font-bold">
+                                                <Gamepad2 size={12} /> Invita
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => removeFriend(f.username)} className="text-red-500 text-xs font-bold">Remove</Button>
+                                        </div>
                                     </div>
                                 ))
                             )}
+                        </div>
+
+                        <div className="border-t border-border pt-3 space-y-2">
+                            <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Inviti Partita</div>
+                            <div className="flex gap-2">
+                                <Input
+                                    value={inviteInput}
+                                    onChange={e => setInviteInput(e.target.value)}
+                                    placeholder="Invita per username..."
+                                    className="flex-1"
+                                />
+                                <Button onClick={() => sendInvite(inviteInput)} className="gap-1">
+                                    <Gamepad2 size={14} /> Invita
+                                </Button>
+                            </div>
+                            {inviteMsg && <div className="text-xs text-cyan-500">{inviteMsg}</div>}
+                            {invites.length === 0 ? (
+                                <div className="text-muted-foreground text-sm italic">Nessun invito in arrivo</div>
+                            ) : (
+                                invites.map(inv => (
+                                    <div key={inv.id} className="flex items-center justify-between bg-muted rounded-lg px-3 py-2 text-sm">
+                                        <span className="text-foreground">{inv.from} ({inv.time_control})</span>
+                                        <div className="flex items-center gap-1">
+                                            <Button variant="secondary" size="sm" onClick={() => acceptInvite(inv)} className="text-green-500 text-xs font-bold gap-1">
+                                                <Check size={12} /> Accetta
+                                            </Button>
+                                            <Button variant="ghost" size="sm" onClick={() => declineInvite(inv)} className="text-red-500 text-xs font-bold gap-1">
+                                                <X size={12} /> Rifiuta
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                            <Button variant="outline" size="sm" onClick={pollSentInvites} className="w-full text-xs">
+                                Controlla inviti inviati
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>

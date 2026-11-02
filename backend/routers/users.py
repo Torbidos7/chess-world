@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from ..database import get_db, User, Game, Friendship
+import uuid
+from ..database import get_db, User, Game, Friendship, GameInvite
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -17,6 +18,10 @@ class UserProfile(BaseModel):
 
 class FriendRequest(BaseModel):
     friend_username: str
+
+class InviteRequest(BaseModel):
+    receiver: str
+    time_control: str = "10+0"
 
 @router.get("/{username}/profile", response_model=UserProfile)
 async def get_user_profile(username: str, db: Session = Depends(get_db)):
@@ -180,11 +185,118 @@ async def get_friend_requests(username: str, db: Session = Depends(get_db)):
     }
 
 @router.post("/{username}/invite")
-async def send_game_invitation(username: str, friend_username: str, db: Session = Depends(get_db)):
+async def send_game_invitation(username: str, request: InviteRequest, db: Session = Depends(get_db)):
     """
-    Send a game invitation to a friend
+    Send a real game invitation to a friend.
     """
+    receiver = request.receiver
+
+    if username == receiver:
+        raise HTTPException(status_code=400, detail="You cannot invite yourself")
+
+    target = db.query(User).filter(User.username == receiver).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Receiver not found")
+
+    # Evita inviti duplicati pending
+    existing = db.query(GameInvite).filter(
+        (GameInvite.sender == username) & (GameInvite.receiver == receiver) &
+        (GameInvite.status == "pending")
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Invite already pending")
+
+    invite = GameInvite(sender=username, receiver=receiver, status="pending", time_control=request.time_control)
+    db.add(invite)
+    db.commit()
+
     return {
-        "message": f"Game invitation sent to {friend_username}",
-        "invitation_id": "pending",
+        "message": f"Game invitation sent to {receiver}",
+        "invitation_id": invite.id,
+        "status": "pending",
     }
+
+@router.get("/{username}/invites/pending")
+async def get_pending_invites(username: str, db: Session = Depends(get_db)):
+    """
+    Get incoming pending game invitations.
+    """
+    invites = db.query(GameInvite).filter(
+        (GameInvite.receiver == username) & (GameInvite.status == "pending")
+    ).order_by(GameInvite.created_at.desc()).all()
+
+    return {
+        "username": username,
+        "invites": [
+            {
+                "id": i.id,
+                "from": i.sender,
+                "time_control": i.time_control,
+                "created_at": i.created_at.isoformat() if i.created_at else None,
+            }
+            for i in invites
+        ],
+        "total": len(invites),
+    }
+
+@router.post("/{username}/invites/{invite_id}/accept")
+async def accept_game_invitation(username: str, invite_id: int, db: Session = Depends(get_db)):
+    """
+    Accept a pending game invitation. Crea una partita condivisa e restituisce game_id.
+    """
+    invite = db.query(GameInvite).filter(
+        (GameInvite.id == invite_id) & (GameInvite.receiver == username) &
+        (GameInvite.status == "pending")
+    ).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="No pending invite found")
+
+    invite.status = "accepted"
+    invite.game_id = str(uuid.uuid4())
+    db.commit()
+
+    return {
+        "message": f"Game started with {invite.sender}",
+        "game_id": invite.game_id,
+        "opponent": invite.sender,
+        "time_control": invite.time_control,
+        "color": "black",  # l'invitante è bianco (sender), l'accettante nero
+    }
+
+@router.post("/{username}/invites/{invite_id}/decline")
+async def decline_game_invitation(username: str, invite_id: int, db: Session = Depends(get_db)):
+    """
+    Decline a pending game invitation.
+    """
+    invite = db.query(GameInvite).filter(
+        (GameInvite.id == invite_id) & (GameInvite.receiver == username) &
+        (GameInvite.status == "pending")
+    ).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="No pending invite found")
+
+    invite.status = "declined"
+    db.commit()
+    return {"message": "Invite declined", "invitation_id": invite.id, "status": "declined"}
+
+@router.post("/{username}/invites/{invite_id}/status")
+async def invite_status(username: str, invite_id: int, db: Session = Depends(get_db)):
+    """
+    Poll dello stato di un invito inviato (per l'invitante): se accettato restituisce game_id.
+    """
+    invite = db.query(GameInvite).filter(
+        (GameInvite.id == invite_id) & (GameInvite.sender == username)
+    ).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+
+    if invite.status == "accepted" and invite.game_id:
+        return {
+            "status": "accepted",
+            "game_id": invite.game_id,
+            "opponent": invite.receiver,
+            "time_control": invite.time_control,
+            "color": "white",
+        }
+
+    return {"status": invite.status, "invitation_id": invite.id}

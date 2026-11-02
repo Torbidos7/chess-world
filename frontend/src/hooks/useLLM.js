@@ -13,7 +13,7 @@ export const useLLM = () => {
         }
     ]);
 
-    const sendMessage = useCallback(async (prompt, fen = null, imageBase64 = null, context = null) => {
+    const sendMessage = useCallback(async (prompt, fen = null, imageBase64 = null, context = null, provider = null, model = null) => {
         const userMessage = {
             role: 'user',
             content: prompt,
@@ -29,7 +29,9 @@ export const useLLM = () => {
                 prompt,
                 fen,
                 image_base64: imageBase64,
-                context
+                context,
+                provider,
+                model
             });
 
             const assistantMessage = {
@@ -46,7 +48,7 @@ export const useLLM = () => {
 
             const errorMessage = {
                 role: 'assistant',
-                content: `Error: ${errorMsg}. Make sure Ollama is running: \`ollama serve\``,
+                content: `Error: ${errorMsg}`,
                 isError: true
             };
 
@@ -68,6 +70,16 @@ export const useLLM = () => {
         }
     }, []);
 
+    const fetchProvider = useCallback(async () => {
+        try {
+            const response = await axios.get(`${API_URL}/api/llm/provider`);
+            return response.data;
+        } catch (err) {
+            console.error('Provider fetch failed:', err);
+            return { provider: 'local', providers: ['local'], models: { local: [], remote: [] }, remote_configured: false };
+        }
+    }, []);
+
     const clearMessages = useCallback(() => {
         setMessages([{
             role: 'assistant',
@@ -81,6 +93,7 @@ export const useLLM = () => {
         messages,
         sendMessage,
         checkHealth,
+        fetchProvider,
         clearMessages
     };
 };
